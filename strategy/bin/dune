@@ -1,4 +1,4 @@
 (executable
  (public_name strategy)
  (name main)
- (libraries strategy))
+ (libraries ohlc))
