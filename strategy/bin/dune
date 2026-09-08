@@ -1,4 +1,24 @@
 (executable
  (public_name strategy)
  (name main)
- (libraries ohlc))
+ (libraries lib))
+
+(executable
+ (public_name temp)
+ (name temp)
+ (libraries lib))
+
+(executable
+ (public_name temp2)
+ (name temp2)
+ (libraries lib))
+
+(executable
+ (public_name temp3)
+ (name temp3)
+ (libraries lib))
+
+(executable
+ (public_name temp4)
+ (name temp4)
+ (libraries lib))
