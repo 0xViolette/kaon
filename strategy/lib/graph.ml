@@ -93,6 +93,8 @@ functor
       register self;
       self
 
+    let rec delay n node = if n = 0 then node else delay (n - 1) (pre node)
+
     let rec_node (seeds : 'a list) (f : 'a node list -> 'a node) : 'a node =
       match seeds with
       | [] -> invalid_arg "rec_node: a recurrence needs at least one seed"
@@ -108,9 +110,6 @@ functor
             }
           in
           register self;
-          let rec delay n node =
-            if n = 0 then node else delay (n - 1) (pre node)
-          in
           let taps = List.init (List.length seeds) (fun i -> delay i self) in
           let body = f taps in
           self.dep <- Rec (Pack body);
@@ -129,7 +128,9 @@ functor
 
     let set a x =
       match a.dep with
-      | Empty -> a.value <- Some x
+      | Empty ->
+          a.prev_value <- a.value;
+          a.value <- Some x
       | _ -> failwith "Cannot set a derived node"
 
     let ordered_nodes : packed_node array option ref = ref None
@@ -152,4 +153,6 @@ functor
                   node.warmup <- rest
               | [] -> node.compute ())
             nodes
+
+    let ( + ) a b = map2 ( + ) a b
   end
