@@ -62,6 +62,11 @@ functor
       register self;
       self
 
+    let map3 f a b c = map2 (fun (a, b) c -> f a b c) (map2 Pair.make a b) c
+
+    let map4 f a b c d =
+      map3 (fun (a, b) c d -> f a b c d) (map2 Pair.make a b) c d
+
     let var () =
       let self =
         {
@@ -95,7 +100,7 @@ functor
 
     let rec delay n node = if n = 0 then node else delay (n - 1) (pre node)
 
-    let rec_node (seeds : 'a list) (f : 'a node list -> 'a node) : 'a node =
+    let rec_node (seeds : 'a list) (f : 'a node -> 'a node) : 'a node =
       match seeds with
       | [] -> invalid_arg "rec_node: a recurrence needs at least one seed"
       | seeds ->
@@ -110,8 +115,9 @@ functor
             }
           in
           register self;
-          let taps = List.init (List.length seeds) (fun i -> delay i self) in
-          let body = f taps in
+          (* let taps = List.init (List.length seeds) (fun i -> delay i self) in *)
+          (* let body = f taps in *)
+          let body = f self in
           self.dep <- Rec (Pack body);
           self.compute <-
             (fun () ->
@@ -119,12 +125,6 @@ functor
               self.value <- value body);
           body.warmup <- List.map (fun s -> Some s) seeds;
           body
-
-    let rec1 s0 f =
-      rec_node [ s0 ] (function [ x ] -> f x | _ -> assert false)
-
-    let rec2 s0 s1 f =
-      rec_node [ s0; s1 ] (function [ x; y ] -> f x y | _ -> assert false)
 
     let set a x =
       match a.dep with
@@ -154,5 +154,6 @@ functor
               | [] -> node.compute ())
             nodes
 
-    let ( + ) a b = map2 ( + ) a b
+    let ( $+ ) a b = map2 ( + ) a b
+    let ( $+. ) a b = map2 ( +. ) a b
   end
