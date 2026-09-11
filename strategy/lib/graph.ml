@@ -16,7 +16,7 @@ functor
       mutable prev_value : 'a option;
       mutable height : int;
       mutable dep : dep;
-      mutable warmup : 'a list;
+      mutable warmup : (unit -> 'a option) list;
       mutable compute : unit -> unit;
     }
 
@@ -100,29 +100,43 @@ functor
 
     let rec delay n node = if n = 0 then node else delay (n - 1) (pre node)
 
-    let rec_node (seeds : 'a list) (f : 'a node -> 'a node) : 'a node =
-      match seeds with
-      | [] -> invalid_arg "rec_node: a recurrence needs at least one seed"
-      | seeds ->
-          let self =
-            {
-              value = None;
-              prev_value = None;
-              height = 0;
-              dep = Empty;
-              warmup = [];
-              compute = (fun () -> ());
-            }
-          in
-          register self;
-          let body = f self in
-          self.dep <- Rec (Pack body);
-          self.compute <-
-            (fun () ->
-              self.prev_value <- self.value;
-              self.value <- value body);
-          body.warmup <- List.map (fun s -> s) seeds;
-          body
+    type 'a seed = Points of 'a list | Nodes of 'a node list
+
+    let rec_node ~(seeds : 'a seed) (f : 'a node -> 'a node) : 'a node =
+      let warm, h =
+        match seeds with
+        | Points ps -> (
+            match ps with
+            | [] -> invalid_arg "rec_node: a recurrence needs at least one seed"
+            | _ -> (List.map (fun p -> fun () -> Some p) ps, 0))
+        | Nodes ns -> (
+            match ns with
+            | [] -> invalid_arg "rec_node: a recurrence needs at least one seed"
+            | _ ->
+                let ret = List.map (fun n -> fun () -> value n) ns in
+                (ret, List.fold_left (fun acc a -> max acc a.height) 0 ns))
+      in
+
+      let self =
+        {
+          value = None;
+          prev_value = None;
+          height = 0;
+          dep = Empty;
+          warmup = [];
+          compute = (fun () -> ());
+        }
+      in
+      register self;
+      let body = f self in
+      self.dep <- Rec (Pack body);
+      self.compute <-
+        (fun () ->
+          self.prev_value <- self.value;
+          self.value <- value body);
+      body.warmup <- warm;
+      body.height <- max body.height (1 + h);
+      body
 
     let set a x =
       match a.dep with
@@ -145,9 +159,9 @@ functor
           Array.iter
             (fun (Pack node) ->
               match node.warmup with
-              | s :: rest ->
+              | w :: rest ->
                   node.prev_value <- node.value;
-                  node.value <- Some s;
+                  node.value <- w ();
                   node.warmup <- rest
               | [] -> node.compute ())
             nodes
