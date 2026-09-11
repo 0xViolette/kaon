@@ -16,7 +16,7 @@ functor
       mutable prev_value : 'a option;
       mutable height : int;
       mutable dep : dep;
-      mutable warmup : 'a option list;
+      mutable warmup : 'a list;
       mutable compute : unit -> unit;
     }
 
@@ -115,15 +115,13 @@ functor
             }
           in
           register self;
-          (* let taps = List.init (List.length seeds) (fun i -> delay i self) in *)
-          (* let body = f taps in *)
           let body = f self in
           self.dep <- Rec (Pack body);
           self.compute <-
             (fun () ->
               self.prev_value <- self.value;
               self.value <- value body);
-          body.warmup <- List.map (fun s -> Some s) seeds;
+          body.warmup <- List.map (fun s -> s) seeds;
           body
 
     let set a x =
@@ -149,11 +147,17 @@ functor
               match node.warmup with
               | s :: rest ->
                   node.prev_value <- node.value;
-                  node.value <- s;
+                  node.value <- Some s;
                   node.warmup <- rest
               | [] -> node.compute ())
             nodes
 
     let ( $+ ) a b = map2 ( + ) a b
     let ( $+. ) a b = map2 ( +. ) a b
+    let ( $* ) a b = map2 ( * ) a b
+    let ( $*. ) a b = map2 ( *. ) a b
+    let ( $- ) a b = map2 ( - ) a b
+    let ( $-. ) a b = map2 ( -. ) a b
+    let ( $/ ) a b = map2 ( / ) a b
+    let ( $/. ) a b = map2 ( /. ) a b
   end
