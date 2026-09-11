@@ -3,9 +3,9 @@ functor
   ()
   ->
   struct
-    type any = Any : 'a t -> any
+    type anyNode = Any : 'a node -> anyNode
 
-    and 'a t = {
+    and 'a node = {
       mutable value : 'a option;
       mutable pre_value : 'a option;
       mutable rank : int;
@@ -13,8 +13,8 @@ functor
       mutable compute : unit -> unit;
     }
 
-    let registry : any list ref = ref []
-    let schedule : any list Dynarray.t = Dynarray.create ()
+    let registry : anyNode list ref = ref []
+    let schedule : anyNode list Dynarray.t = Dynarray.create ()
     let scheduled = ref 0
 
     let scheduler (Any a) =
@@ -71,7 +71,7 @@ functor
     let map4 f a b c d =
       map3 (fun (a, b) c d -> f a b c d) (zip Pair.make a b) c d
 
-    let input () : 'a t =
+    let input () : 'a node =
       let self =
         {
           init = [];
@@ -102,16 +102,16 @@ functor
 
     let rec delay n node = if n = 0 then node else delay (n - 1) (pre node)
 
-    type 'a init = Const of 'a list | Copy of 'a t list
+    type 'a init = Consts of 'a list | Nodes of 'a node list
 
-    let loop ~(init : 'a init) (f : 'a t -> 'a t) : 'a t =
+    let loop ~(init : 'a init) (f : 'a node -> 'a node) : 'a node =
       let init, init_rank =
         match init with
-        | Const ps -> (
+        | Consts ps -> (
             match ps with
             | [] -> invalid_arg "loop: a recurrence needs at least one element"
             | _ -> (List.map (fun p -> fun () -> Some p) ps, 0))
-        | Copy ns -> (
+        | Nodes ns -> (
             match ns with
             | [] -> invalid_arg "loop: a recurrence needs at least one element"
             | _ ->
