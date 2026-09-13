@@ -1,18 +1,18 @@
-type bar = {
-  timestamp : int64;
-  open_ : float;
-  high : float;
-  low : float;
-  close : float;
-}
+type bar =
+  { timestamp : int64
+  ; open_ : float
+  ; high : float
+  ; low : float
+  ; close : float
+  }
 
-type series = {
-  timestamp : int64 list;
-  open_ : float list;
-  high : float list;
-  low : float list;
-  close : float list;
-}
+type series =
+  { timestamp : int64 list
+  ; open_ : float list
+  ; high : float list
+  ; low : float list
+  ; close : float list
+  }
 
 val message_size : int
 val decode : bytes -> bar

@@ -1,10 +1,12 @@
 open Lib
 
 let refuse_tty () =
-  if In_channel.isatty In_channel.stdin then
+  if In_channel.isatty In_channel.stdin
+  then
     Utils.die
       "refusing to read binary from terminal\n\
        hint: redirect from a file (< ohlc.bin) or pipe from a producer\n"
+;;
 
 let () =
   refuse_tty ();
@@ -16,3 +18,4 @@ let () =
     | None -> prerr_endline "End of Stream"
   in
   loop 1
+;;
