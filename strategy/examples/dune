@@ -1,0 +1,3 @@
+(executable
+ (name temp)
+ (libraries lib))
