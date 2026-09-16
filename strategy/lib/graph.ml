@@ -26,51 +26,40 @@ let const g v = make g 0 (Const v)
 let input g = make g 0 Input
 
 (* constant folding: an operation on constants is itself a constant *)
-let unary : type a b. t -> (a, b) unary -> a signal -> b signal =
-  fun g op a ->
+let unary =
+  fun op g a ->
   match a.def with
   | Const x -> const g (eval_unary op x)
   | _ -> make g (a.rank + 1) (Unary (op, a))
 ;;
 
-let binary : type a b c. t -> (a, b, c) binary -> a signal -> b signal -> c signal =
-  fun g op a b ->
+let binary =
+  fun op g a b ->
   match a.def, b.def with
   | Const x, Const y -> const g (eval_binary op x y)
   | _ -> make g (1 + max a.rank b.rank) (Binary (op, a, b))
 ;;
 
 (*unary operations*)
-let int_neg g a = unary g Int_neg a
-let float_neg g a = unary g Float_neg a
-let int_abs g a = unary g Int_abs a
-let float_abs g a = unary g Float_abs a
-let float_sqrt g a = unary g Float_sqrt a
-let float_of_int g a = unary g Float_of_int a
+let neg = unary Neg
+let abs = unary Abs
+let sqrt = unary Sqrt
 
 (*binary operations*)
-let int_add g a b = binary g Int_add a b
-let float_add g a b = binary g Float_add a b
-let int_sub g a b = binary g Int_sub a b
-let float_sub g a b = binary g Float_sub a b
-let int_mul g a b = binary g Int_mul a b
-let float_mul g a b = binary g Float_mul a b
-let int_div g a b = binary g Int_div a b
-let float_div g a b = binary g Float_div a b
-let int_lt g a b = binary g Int_lt a b
-let float_lt g a b = binary g Float_lt a b
-let int_le g a b = binary g Int_le a b
-let float_le g a b = binary g Float_le a b
-let int_gt g a b = binary g Int_gt a b
-let float_gt g a b = binary g Float_gt a b
-let int_ge g a b = binary g Int_ge a b
-let float_ge g a b = binary g Float_ge a b
-let int_min g a b = binary g Int_min a b
-let float_min g a b = binary g Float_min a b
-let int_max g a b = binary g Int_max a b
-let float_max g a b = binary g Float_max a b
-let and_ g a b = binary g And a b
-let or_ g a b = binary g Or a b
+let add = binary Add
+let sub = binary Sub
+let mul = binary Mul
+let div = binary Div
+let eq g a b = binary Eq g a b
+let neq g a b = binary Neq g a b
+let lt = binary Lt
+let le = binary Le
+let gt = binary Gt
+let ge = binary Ge
+let min = binary Min
+let max = binary Max
+let and_ = binary And
+let or_ = binary Or
 
 let pre g a =
   match a.def with
@@ -90,7 +79,7 @@ let rec window g length node =
   if length = 0 then [] else node :: window g (length - 1) (pre g node)
 ;;
 
-let cond g p t e = make g (1 + max p.rank (max t.rank e.rank)) (Cond (p, t, e))
+let cond g p t e = make g (1 + Int.max p.rank (Int.max t.rank e.rank)) (Cond (p, t, e))
 
 let loop g ~(init : 'a init) (body : 'a Language.signal -> 'a Language.signal)
   : 'a Language.signal
@@ -101,10 +90,11 @@ let loop g ~(init : 'a init) (body : 'a Language.signal -> 'a Language.signal)
    | Node (_, len) -> if len <= 0 then invalid_arg "loop: init length must be positive");
   let initial_rank =
     match init with
-    | Nodes nodes -> Array.fold_left (fun max_rank node -> max max_rank node.rank) 0 nodes
+    | Nodes nodes ->
+      Array.fold_left (fun max_rank node -> Int.max max_rank node.rank) 0 nodes
     | Node (node, _) -> node.rank
   in
   let knot = make g 0 Knot in
   let result = body knot in
-  make g (1 + max result.rank initial_rank) (Loop (init, knot, result))
+  make g (1 + Int.max result.rank initial_rank) (Loop (init, knot, result))
 ;;

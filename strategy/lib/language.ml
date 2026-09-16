@@ -1,32 +1,24 @@
+(*
+A signal can only be float or bool [numerical stream or logical stream]
+*)
 type (_, _) unary =
-  | Int_neg : (int, int) unary
-  | Float_neg : (float, float) unary
-  | Int_abs : (int, int) unary
-  | Float_abs : (float, float) unary
-  | Float_of_int : (int, float) unary
-  | Float_sqrt : (float, float) unary
+  | Neg : (float, float) unary
+  | Abs : (float, float) unary
+  | Sqrt : (float, float) unary
 
 type (_, _, _) binary =
-  | Int_add : (int, int, int) binary
-  | Float_add : (float, float, float) binary
-  | Int_sub : (int, int, int) binary
-  | Float_sub : (float, float, float) binary
-  | Int_mul : (int, int, int) binary
-  | Float_mul : (float, float, float) binary
-  | Int_div : (int, int, int) binary
-  | Float_div : (float, float, float) binary
-  | Int_lt : (int, int, bool) binary
-  | Float_lt : (float, float, bool) binary
-  | Int_le : (int, int, bool) binary
-  | Float_le : (float, float, bool) binary
-  | Int_gt : (int, int, bool) binary
-  | Float_gt : (float, float, bool) binary
-  | Int_ge : (int, int, bool) binary
-  | Float_ge : (float, float, bool) binary
-  | Int_min : (int, int, int) binary
-  | Float_min : (float, float, float) binary
-  | Int_max : (int, int, int) binary
-  | Float_max : (float, float, float) binary
+  | Add : (float, float, float) binary
+  | Sub : (float, float, float) binary
+  | Mul : (float, float, float) binary
+  | Div : (float, float, float) binary
+  | Eq : ('a, 'a, bool) binary
+  | Neq : ('a, 'a, bool) binary
+  | Lt : (float, float, bool) binary
+  | Le : (float, float, bool) binary
+  | Gt : (float, float, bool) binary
+  | Ge : (float, float, bool) binary
+  | Min : (float, float, float) binary
+  | Max : (float, float, float) binary
   | And : (bool, bool, bool) binary
   | Or : (bool, bool, bool) binary
 
@@ -61,37 +53,26 @@ type any_signal = Any : 'a signal -> any_signal [@@unboxed]
 let eval_unary : type a b. (a, b) unary -> a -> b =
   fun op x ->
   match op with
-  | Int_neg -> Int.neg x
-  | Float_neg -> Float.neg x
-  | Int_abs -> Int.abs x
-  | Float_abs -> Float.abs x
-  | Float_of_int -> Float.of_int x
-  | Float_sqrt -> Float.sqrt x
+  | Neg -> Float.neg x
+  | Abs -> Float.abs x
+  | Sqrt -> Float.sqrt x
 ;;
 
 let eval_binary : type a b c. (a, b, c) binary -> a -> b -> c =
   fun op x y ->
   match op with
-  | Int_add -> Int.add x y
-  | Float_add -> Float.add x y
-  | Int_sub -> Int.sub x y
-  | Float_sub -> Float.sub x y
-  | Int_mul -> Int.mul x y
-  | Float_mul -> Float.mul x y
-  | Int_div -> Int.div x y
-  | Float_div -> Float.div x y
-  | Int_lt -> x < y
-  | Float_lt -> x < y
-  | Int_le -> x <= y
-  | Float_le -> x <= y
-  | Int_gt -> x > y
-  | Float_gt -> x > y
-  | Int_ge -> x >= y
-  | Float_ge -> x >= y
-  | Int_min -> Int.min x y
-  | Float_min -> Float.min x y
-  | Int_max -> Int.max x y
-  | Float_max -> Float.max x y
+  | Add -> Float.add x y
+  | Sub -> Float.sub x y
+  | Mul -> Float.mul x y
+  | Div -> Float.div x y
+  | Eq -> x = y
+  | Neq -> x <> y
+  | Lt -> x < y
+  | Le -> x <= y
+  | Gt -> x > y
+  | Ge -> x >= y
+  | Min -> Float.min x y
+  | Max -> Float.max x y
   | And -> Bool.( && ) x y
   | Or -> Bool.( || ) x y
 ;;

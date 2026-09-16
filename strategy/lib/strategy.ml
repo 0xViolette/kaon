@@ -8,53 +8,48 @@ module Make () : S = struct
   let delay n x = Graph.delay g n x
   let window n x = Graph.window g n x
   let loop ~init f = Graph.loop g ~init f
-  let int_neg = Graph.int_neg g
-  let float_neg = Graph.float_neg g
-  let int_abs = Graph.int_abs g
-  let float_abs = Graph.float_abs g
-  let float_sqrt = Graph.float_sqrt g
-  let float_of_int = Graph.float_of_int g
-  let int_add = Graph.int_add g
-  let float_add = Graph.float_add g
-  let int_sub = Graph.int_sub g
-  let float_sub = Graph.float_sub g
-  let int_mul = Graph.int_mul g
-  let float_mul = Graph.float_mul g
-  let int_div = Graph.int_div g
-  let float_div = Graph.float_div g
-  let int_lt = Graph.int_lt g
-  let float_lt = Graph.float_lt g
-  let int_le = Graph.int_le g
-  let float_le = Graph.float_le g
-  let int_gt = Graph.int_gt g
-  let float_gt = Graph.float_gt g
-  let int_ge = Graph.int_ge g
-  let float_ge = Graph.float_ge g
-  let int_min = Graph.int_min g
-  let float_min = Graph.float_min g
-  let int_max = Graph.int_max g
-  let float_max = Graph.float_max g
-  let and_ = Graph.and_ g
-  let or_ = Graph.or_ g
+  let neg = Graph.neg g
+  let abs = Graph.abs g
+  let sqrt = Graph.sqrt g
+  let add = Graph.add g
+  let add_const_r s x = Graph.add g s (const x)
+  let add_const_l x s = Graph.add g s (const x)
+  let sub = Graph.sub g
+  let sub_const_r s x = Graph.sub g s (const x)
+  let sub_const_l x s = Graph.sub g s (const x)
+  let mul = Graph.mul g
+  let mul_const_r s x = Graph.mul g s (const x)
+  let mul_const_l x s = Graph.mul g s (const x)
+  let div = Graph.div g
+  let div_const_r s x = Graph.div g s (const x)
+  let div_const_l x s = Graph.div g s (const x)
+  let lt = Graph.lt g
+  let le = Graph.le g
+  let gt = Graph.gt g
+  let ge = Graph.ge g
+  let min = Graph.min g
+  let max = Graph.max g
   let cond = Graph.cond g
-  let ( +~ ) = int_add
-  let ( +.~ ) = float_add
-  let ( *~ ) = int_mul
-  let ( *.~ ) = float_mul
-  let ( -~ ) = int_sub
-  let ( -.~ ) = float_sub
-  let ( /~ ) = int_div
-  let ( /.~ ) = float_div
-  let ( <~ ) = int_lt
-  let ( <.~ ) = float_lt
-  let ( <=~ ) = int_le
-  let ( <=.~ ) = float_le
-  let ( >~ ) = int_gt
-  let ( >.~ ) = float_gt
-  let ( >=~ ) = int_ge
-  let ( >=.~ ) = float_ge
-  let ( &&~ ) = and_
-  let ( ||~ ) = or_
+  let ( +~ ) = add
+  let ( +~. ) = add_const_r
+  let ( +.~ ) = add_const_l
+  let ( -~ ) = sub
+  let ( -~. ) = sub_const_r
+  let ( -.~ ) = sub_const_l
+  let ( *~ ) = mul
+  let ( *~. ) = mul_const_r
+  let ( *.~ ) = mul_const_l
+  let ( /~ ) = div
+  let ( /~. ) = div_const_r
+  let ( /.~ ) = div_const_l
+  let ( <~ ) = lt
+  let ( <=~ ) = le
+  let ( >~ ) = gt
+  let ( >=~ ) = ge
+  let ( &&~ ) = Graph.and_ g
+  let ( ||~ ) = Graph.or_ g
+  let ( !=~ ) a b = Graph.neq g a b
+  let ( =~ ) a b = Graph.eq g a b
 
   let compile () =
     g.compiled <- true;
@@ -62,18 +57,17 @@ module Make () : S = struct
   ;;
 
   module Indicator = struct
-    let sma n s =
-      List.fold_left ( +.~ ) (const 0.) (window n s) /.~ const (Float.of_int n)
-    ;;
+    let sum n s = window n s |> List.fold_left ( +~ ) @@ const 0.
+    let sma n s = sum n s /~. Float.of_int n
 
     let ema n s =
-      let alpha = const @@ (2. /. Float.of_int (n + 1)) in
+      let alpha = 2. /. Float.of_int (n + 1) in
       loop
         ~init:(Node (sma n s, n))
-        (fun prev_ema -> (s *.~ alpha) +.~ (prev_ema *.~ (const 1.0 -.~ alpha)))
+        (fun prev_ema -> (s *~. alpha) +~ (prev_ema *~. (1.0 -. alpha)))
     ;;
 
-    let crossover a b = cond (pre a <.~ pre b &&~ (a >.~ b)) (const true) (const false)
-    let crossunder a b = cond (pre a >.~ pre b &&~ (a <.~ b)) (const true) (const false)
+    let crossover a b = cond (pre a <~ pre b &&~ (a >~ b)) (const true) (const false)
+    let crossunder a b = cond (pre a >~ pre b &&~ (a <~ b)) (const true) (const false)
   end
 end
