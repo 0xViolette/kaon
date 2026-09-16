@@ -69,6 +69,8 @@ let int_min g a b = binary g Int_min a b
 let float_min g a b = binary g Float_min a b
 let int_max g a b = binary g Int_max a b
 let float_max g a b = binary g Float_max a b
+let and_ g a b = binary g And a b
+let or_ g a b = binary g Or a b
 
 let pre g a =
   match a.def with
@@ -87,6 +89,8 @@ let rec window g length node =
   if length < 0 then invalid_arg "window: lookback cannot be negative";
   if length = 0 then [] else node :: window g (length - 1) (pre g node)
 ;;
+
+let cond g p t e = make g (1 + max p.rank (max t.rank e.rank)) (Cond (p, t, e))
 
 let loop g ~(init : 'a init) (body : 'a Language.signal -> 'a Language.signal)
   : 'a Language.signal

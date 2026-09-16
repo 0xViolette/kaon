@@ -83,6 +83,15 @@ let compile (g : Graph.t) =
           <- (match get l.id t, get r.id t with
               | Some l, Some r -> Obj.repr (Some (eval_binary op l r))
               | _ -> Obj.repr None))
+    | Cond (pred, the, els) ->
+      Some
+        (fun () ->
+          t.prev.(s.id) <- t.cur.(s.id);
+          t.cur.(s.id)
+          <- (match get pred.id t with
+              | None -> Obj.repr None
+              | Some true -> Obj.repr (get the.id t)
+              | Some false -> Obj.repr (get els.id t)))
     | Loop (init, _, result) ->
       let index = ref 0 in
       (match init with

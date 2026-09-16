@@ -27,6 +27,8 @@ type (_, _, _) binary =
   | Float_min : (float, float, float) binary
   | Int_max : (int, int, int) binary
   | Float_max : (float, float, float) binary
+  | And : (bool, bool, bool) binary
+  | Or : (bool, bool, bool) binary
 
 type 'a signal =
   { id : int
@@ -41,6 +43,7 @@ and _ def =
   | Pre : 'a signal -> 'a def
   | Unary : ('a, 'b) unary * 'a signal -> 'b def
   | Binary : ('a, 'b, 'c) binary * 'a signal * 'b signal -> 'c def
+  | Cond : bool signal * 'a signal * 'a signal -> 'a def
   | Knot : 'a def
   | Loop : 'a init * 'a signal * 'a signal -> 'a def
 
@@ -89,4 +92,6 @@ let eval_binary : type a b c. (a, b, c) binary -> a -> b -> c =
   | Float_min -> Float.min x y
   | Int_max -> Int.max x y
   | Float_max -> Float.max x y
+  | And -> Bool.( && ) x y
+  | Or -> Bool.( || ) x y
 ;;
