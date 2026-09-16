@@ -2,10 +2,10 @@ open Lib
 
 let string_float a = a |> Option.map string_of_float |> Option.value ~default:"None"
 
-module Strat1 = Strategy.Make ()
+module S = Strategy.Make ()
 
-let f1 close =
-  let open Strat1 in
+let f close =
+  let open S in
   let sma5 = List.fold_left ( +.~ ) (const 0.) (window 5 close) /.~ const 5.0 in
   let ema =
     let multiplier = const (1. /. 5.) in
@@ -16,9 +16,9 @@ let f1 close =
   sma5, ema
 ;;
 
-let close = Strat1.input ()
-let sma5, ema = f1 close
-let r = Strat1.compile ()
+let close = S.input ()
+let sma5, ema = f close
+let r = S.compile ()
 
 let () =
   Printf.printf "size: %d\n" r.size;

@@ -7,24 +7,8 @@ type t =
   }
 
 let create () = { counter = 0; registry = []; cache = Hashtbl.create 16 }
-
-let unary_tag : type a b. (a, b) unary -> int = function
-  | Int_neg -> 0
-  | Float_neg -> 1
-;;
-
-let binary_tag : type a b c. (a, b, c) binary -> int = function
-  | Int_add -> 0
-  | Int_sub -> 1
-  | Int_mul -> 2
-  | Int_div -> 3
-  | Float_add -> 4
-  | Float_sub -> 5
-  | Float_mul -> 6
-  | Float_div -> 7
-  | Int_lt -> 8
-  | Float_lt -> 9
-;;
+let unary_tag : type a b. (a, b) unary -> int = Obj.magic
+let binary_tag : type a b c. (a, b, c) binary -> int = Obj.magic
 
 let key_of_def : type a. a def -> signal_key option = function
   | Pre src -> Some (KPre src.id)

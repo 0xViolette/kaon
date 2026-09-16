@@ -40,18 +40,35 @@ let binary : type a b c. t -> (a, b, c) binary -> a signal -> b signal -> c sign
   | _ -> make g (1 + max a.rank b.rank) (Binary (op, a, b))
 ;;
 
-let int_add g a b = binary g Int_add a b
-let int_sub g a b = binary g Int_sub a b
-let int_mul g a b = binary g Int_mul a b
-let int_div g a b = binary g Int_div a b
-let int_lt g a b = binary g Int_lt a b
-let float_add g a b = binary g Float_add a b
-let float_sub g a b = binary g Float_sub a b
-let float_mul g a b = binary g Float_mul a b
-let float_div g a b = binary g Float_div a b
-let float_lt g a b = binary g Float_lt a b
+(*unary operations*)
 let int_neg g a = unary g Int_neg a
 let float_neg g a = unary g Float_neg a
+let int_abs g a = unary g Int_abs a
+let float_abs g a = unary g Float_abs a
+let float_sqrt g a = unary g Float_sqrt a
+let float_of_int g a = unary g Float_of_int a
+
+(*binary operations*)
+let int_add g a b = binary g Int_add a b
+let float_add g a b = binary g Float_add a b
+let int_sub g a b = binary g Int_sub a b
+let float_sub g a b = binary g Float_sub a b
+let int_mul g a b = binary g Int_mul a b
+let float_mul g a b = binary g Float_mul a b
+let int_div g a b = binary g Int_div a b
+let float_div g a b = binary g Float_div a b
+let int_lt g a b = binary g Int_lt a b
+let float_lt g a b = binary g Float_lt a b
+let int_le g a b = binary g Int_le a b
+let float_le g a b = binary g Float_le a b
+let int_gt g a b = binary g Int_gt a b
+let float_gt g a b = binary g Float_gt a b
+let int_ge g a b = binary g Int_ge a b
+let float_ge g a b = binary g Float_ge a b
+let int_min g a b = binary g Int_min a b
+let float_min g a b = binary g Float_min a b
+let int_max g a b = binary g Int_max a b
+let float_max g a b = binary g Float_max a b
 
 let pre g a =
   match a.def with
