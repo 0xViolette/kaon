@@ -16,7 +16,7 @@
 +--------+------+---------+-----------+
 *)
 
-type bar =
+type bar_tick =
   { timestamp : int64
   ; open_ : float
   ; high : float
@@ -24,17 +24,9 @@ type bar =
   ; close : float
   }
 
-type series =
-  { timestamp : int64 list
-  ; open_ : float list
-  ; high : float list
-  ; low : float list
-  ; close : float list
-  }
-
 let message_size = 40
 
-let decode bytes : bar =
+let decode bytes : bar_tick =
   let bytes_to_float offset = Int64.float_of_bits (Bytes.get_int64_le bytes offset) in
   { timestamp = Bytes.get_int64_le bytes 0
   ; open_ = bytes_to_float 8
@@ -44,7 +36,7 @@ let decode bytes : bar =
   }
 ;;
 
-let encode buf (bar : bar) =
+let encode buf (bar : bar_tick) =
   let set_float64 off v = Bytes.set_int64_le buf off (Int64.bits_of_float v) in
   Bytes.set_int64_le buf 0 bar.timestamp;
   set_float64 8 bar.open_;
@@ -53,7 +45,7 @@ let encode buf (bar : bar) =
   set_float64 32 bar.close
 ;;
 
-let show (bar : bar) =
+let show (bar : bar_tick) =
   Printf.printf
     "timestamp: %Ld | open: %f | high: %f | low: %f | close: %f\n"
     bar.timestamp
@@ -61,15 +53,6 @@ let show (bar : bar) =
     bar.high
     bar.low
     bar.close
-;;
-
-let add (bar : bar) (bars : series) =
-  { timestamp = bar.timestamp :: bars.timestamp
-  ; open_ = bar.open_ :: bars.open_
-  ; high = bar.high :: bars.high
-  ; low = bar.low :: bars.low
-  ; close = bar.close :: bars.close
-  }
 ;;
 
 let really_read ic buf =
@@ -91,3 +74,44 @@ let next_bar ic buf =
   | `Eof -> None
   | `Truncated n -> Utils.die "truncated record: got %d bytes, expected %d" n message_size
 ;;
+
+(* module type S = sig *)
+(*   module S' : Strategy.S *)
+(**)
+(*   val open_ : float Language.signal *)
+(*   val high : float Language.signal *)
+(*   val low : float Language.signal *)
+(*   val close : float Language.signal *)
+(* end *)
+
+module Make () = struct
+  module S' = Strategy.Make ()
+  include S'
+
+  let open_ : float Language.signal = S'.input ()
+  let high : float Language.signal = S'.input ()
+  let low : float Language.signal = S'.input ()
+  let close : float Language.signal = S'.input ()
+
+  let backtest r (f : unit -> unit) =
+    Utils.refuse_tty ();
+    let ic = In_channel.stdin in
+    let buf = Bytes.create message_size in
+    let rec loop n =
+      match next_bar ic buf with
+      | Some bar ->
+        Runtime.(
+          tick
+            r
+            [ Set (open_, bar.open_)
+            ; Set (high, bar.high)
+            ; Set (low, bar.low)
+            ; Set (close, bar.close)
+            ]);
+        f ();
+        loop (n + 1)
+      | None -> prerr_endline "End of Stream"
+    in
+    loop 1
+  ;;
+end
