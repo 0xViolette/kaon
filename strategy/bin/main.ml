@@ -1,21 +1,23 @@
 open Lib
 
-let refuse_tty () =
-  if In_channel.isatty In_channel.stdin
-  then
-    Utils.die
-      "refusing to read binary from terminal\n\
-       hint: redirect from a file (< ohlc.bin) or pipe from a producer\n"
+let pp_float = function
+  | None -> "None"
+  | Some x -> Printf.sprintf "%.2f" x
 ;;
 
-let () =
-  refuse_tty ();
-  let ic = In_channel.stdin in
-  let buf = Bytes.create Ohlc.message_size in
-  let rec loop n =
-    match Ohlc.next_bar ic buf with
-    | Some _bar -> loop (n + 1)
-    | None -> prerr_endline "End of Stream"
-  in
-  loop 1
+module OhlcStrat = Ohlc.Make ()
+
+let strat () =
+  let open OhlcStrat in
+  let sma5 = Indicator.sma 5 close in
+  sma5
 ;;
+
+let observable = strat ()
+let r = OhlcStrat.compile ();;
+
+OhlcStrat.backtest r (fun () ->
+  Printf.printf
+    "close: %s | sma5: %s\n"
+    (pp_float (Runtime.value r OhlcStrat.close))
+    (pp_float (Runtime.value r observable)))

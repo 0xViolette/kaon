@@ -93,6 +93,18 @@ module Make () = struct
   let low : float Language.signal = S'.input ()
   let close : float Language.signal = S'.input ()
 
+  module Indicator = struct
+    include S'.Indicator
+
+    let tr =
+      let open S' in
+      let prev_close = pre close in
+      max (high -~ low) (max (abs (high -~ prev_close)) (abs (low -~ prev_close)))
+    ;;
+
+    let atr n alpha = ema n alpha tr
+  end
+
   let backtest r (f : unit -> unit) =
     Utils.refuse_tty ();
     let ic = In_channel.stdin in

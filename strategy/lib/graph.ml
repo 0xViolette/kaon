@@ -1,5 +1,5 @@
 type t =
-  { builder : Builder.t
+  { ctx : Context.t
   ; mutable compiled : bool
   ; id : int
   }
@@ -12,13 +12,13 @@ let fresh_token =
     token
 ;;
 
-let create () = { builder = Builder.create (); compiled = false; id = fresh_token () }
+let create () = { ctx = Context.create (); compiled = false; id = fresh_token () }
 
 open Language
 
 let make g rank def =
   if not g.compiled
-  then Builder.make g.builder g.id rank def
+  then Context.make g.ctx g.id rank def
   else failwith "Cannot mess with a compiled graph"
 ;;
 

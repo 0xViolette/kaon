@@ -15,7 +15,7 @@ let get id r =
 
 let compile (g : Graph.t) =
   (* Array of all signals that are part of G *)
-  let signals = Array.of_list g.builder.registry in
+  let signals = Array.of_list g.ctx.registry in
   Array.stable_sort (fun (Any l) (Any r) -> compare l.rank r.rank) signals;
   (* size of the graph = number of signals present in the graph *)
   let size = Array.length signals in

@@ -30,11 +30,21 @@ module type S = sig
   val ( ||~ ) : bool Language.signal -> bool Language.signal -> bool Language.signal
   val ( =~ ) : 'a Language.signal -> 'a Language.signal -> bool Language.signal
   val ( !=~ ) : 'a Language.signal -> 'a Language.signal -> bool Language.signal
+
+  val cond
+    :  bool Language.signal
+    -> 'a Language.signal
+    -> 'a Language.signal
+    -> 'a Language.signal
+
+  val max : float Language.signal -> float Language.signal -> float Language.signal
+  val min : float Language.signal -> float Language.signal -> float Language.signal
+  val abs : float Language.signal -> float Language.signal
   val compile : unit -> Runtime.t
 
   module Indicator : sig
     val sma : int -> float Language.signal -> float Language.signal
-    val ema : int -> float Language.signal -> float Language.signal
+    val ema : int -> float -> float Language.signal -> float Language.signal
     val crossover : float Language.signal -> float Language.signal -> bool Language.signal
 
     val crossunder

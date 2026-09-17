@@ -29,7 +29,7 @@ module Make () : S = struct
   let ge = Graph.ge g
   let min = Graph.min g
   let max = Graph.max g
-  let cond = Graph.cond g
+  let cond i t e = Graph.cond g i t e
   let ( +~ ) = add
   let ( +~. ) = add_const_r
   let ( +.~ ) = add_const_l
@@ -60,8 +60,7 @@ module Make () : S = struct
     let sum n s = window n s |> List.fold_left ( +~ ) @@ const 0.
     let sma n s = sum n s /~. Float.of_int n
 
-    let ema n s =
-      let alpha = 2. /. Float.of_int (n + 1) in
+    let ema n alpha s =
       loop
         ~init:(Node (sma n s, n))
         (fun prev_ema -> (s *~. alpha) +~ (prev_ema *~. (1.0 -. alpha)))
