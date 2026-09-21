@@ -10,7 +10,7 @@ let create () = { counter = 0; registry = []; cache = Hashtbl.create 16 }
 let unary_tag : type a b. (a, b) unary -> int = Obj.magic
 let binary_tag : type a b c. (a, b, c) binary -> int = Obj.magic
 
-let key_of_def : type a. a def -> signal_key option = function
+let key_of_def = function
   | Pre src -> Some (KPre src.id)
   | Unary (op, src) -> Some (KUnary (unary_tag op, src.id))
   | Binary (op, l, r) -> Some (KBinary (binary_tag op, l.id, r.id))
@@ -25,7 +25,7 @@ let check_operands : type a. int -> a def -> unit =
     if s.graph_id <> graph_id then failwith "make: operand belongs to a different graph"
   in
   match def with
-  | Const _ | Input | Knot -> ()
+  | Undefined | Const _ | Input | Knot | Tick -> ()
   | Pre src -> check src
   | Unary (_, src) -> check src
   | Binary (_, l, r) ->
@@ -35,12 +35,14 @@ let check_operands : type a. int -> a def -> unit =
     check pred;
     check t;
     check e
+  | Default (a, b) ->
+    check a;
+    check b
   | Loop (init, knot, result) ->
     check knot;
     check result;
-    (match init with
-     | Nodes sources -> Array.iter check sources
-     | Node (source, _) -> check source)
+    Array.iter check init
+  | Map (_, src) -> check src
 ;;
 
 let make t graph_id rank def =

@@ -50,11 +50,23 @@ let compile (g : Graph.t) =
   in
   let step (Any s) =
     match s.def with
+    | Undefined ->
+      t.prev.(s.id) <- Obj.repr None;
+      t.cur.(s.id) <- Obj.repr None;
+      None
     | Const v ->
       t.prev.(s.id) <- Obj.repr (Some v);
       t.cur.(s.id) <- Obj.repr (Some v);
       None
     | Input -> None
+    | Tick ->
+      Some
+        (fun () ->
+          t.prev.(s.id) <- t.cur.(s.id);
+          t.cur.(s.id)
+          <- (match get s.id t with
+              | Some n -> Obj.repr (Some (n + 1))
+              | None -> Obj.repr (Some 1)))
     | Pre src ->
       Some
         (fun () ->
@@ -92,27 +104,34 @@ let compile (g : Graph.t) =
               | None -> Obj.repr None
               | Some true -> Obj.repr (get the.id t)
               | Some false -> Obj.repr (get els.id t)))
+    | Default (a, b) ->
+      Some
+        (fun () ->
+          t.prev.(s.id) <- t.cur.(s.id);
+          t.cur.(s.id)
+          <- (match get a.id t with
+              | Some _ -> Obj.repr (get a.id t)
+              | None -> Obj.repr (get b.id t)))
     | Loop (init, _, result) ->
-      let index = ref 0 in
-      (match init with
-       | Nodes sources ->
-         Some
-           (fun () ->
-             t.prev.(s.id) <- t.cur.(s.id);
-             if !index < Array.length sources
-             then (
-               t.cur.(s.id) <- t.cur.(sources.(!index).id);
-               incr index)
-             else t.cur.(s.id) <- t.cur.(result.id))
-       | Node (source, len) ->
-         Some
-           (fun () ->
-             t.prev.(s.id) <- t.cur.(s.id);
-             if !index < len
-             then (
-               t.cur.(s.id) <- t.cur.(source.id);
-               incr index)
-             else t.cur.(s.id) <- t.cur.(result.id)))
+      let init_idx = ref 0 in
+      Some
+        (fun () ->
+          t.prev.(s.id) <- t.cur.(s.id);
+          t.cur.(s.id)
+          <- (if !init_idx < Array.length init
+              then (
+                let res = Obj.repr (get init.(!init_idx).id t) in
+                incr init_idx;
+                res)
+              else Obj.repr (get result.id t)))
+    | Map (f, src) ->
+      Some
+        (fun () ->
+          t.prev.(s.id) <- t.cur.(s.id);
+          t.cur.(s.id)
+          <- (match get src.id t with
+              | Some x -> Obj.repr (Some (f x))
+              | None -> Obj.repr None))
   in
   let steps =
     List.rev
@@ -129,27 +148,27 @@ let compile (g : Graph.t) =
 
 type set = Set : 'a signal * 'a -> set
 
-let tick r setters =
-  (* validate first: a failing tick leaves the runtime state untouched *)
+let step r setters =
+  (* validate first: a failing step leaves the runtime state untouched *)
   List.iter
     (fun (Set (s, _)) ->
        if s.graph_id <> r.graph_id
-       then failwith "tick: signal belongs to a different graph";
+       then failwith "step: signal belongs to a different graph";
        match s.def with
        | Input -> ()
-       | _ -> failwith "tick: cannot set non input node")
+       | _ -> failwith "step: cannot set non input node")
     setters;
   if
     Array.exists
       (fun id -> not (List.exists (fun (Set (s, _)) -> s.id = id) setters))
       r.input_ids
-  then failwith "tick: all inputs must be set";
+  then failwith "step: all inputs must be set";
   List.iter
     (fun (Set (s, v)) ->
        r.prev.(s.id) <- r.cur.(s.id);
        r.cur.(s.id) <- Obj.repr (Some v))
     setters;
-  Array.iter (fun step -> step ()) r.steps
+  Array.iter (fun f -> f ()) r.steps
 ;;
 
 let value r (s : 'a signal) : 'a option =

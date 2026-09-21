@@ -1,24 +1,31 @@
 (*
 A signal can only be float or bool [numerical stream or logical stream]
 *)
+
 type (_, _) unary =
   | Neg : (float, float) unary
   | Abs : (float, float) unary
   | Sqrt : (float, float) unary
+  | Not : (bool, bool) unary
 
 type (_, _, _) binary =
+  (*------------arithmetic-------------*)
   | Add : (float, float, float) binary
   | Sub : (float, float, float) binary
   | Mul : (float, float, float) binary
   | Div : (float, float, float) binary
+  (*-----------equivalence-------------*)
   | Eq : ('a, 'a, bool) binary
   | Neq : ('a, 'a, bool) binary
+  (*-----------relational--------------*)
   | Lt : (float, float, bool) binary
   | Le : (float, float, bool) binary
   | Gt : (float, float, bool) binary
   | Ge : (float, float, bool) binary
+  (*-----------extremum----------------*)
   | Min : (float, float, float) binary
   | Max : (float, float, float) binary
+  (*-----------logical-----------------*)
   | And : (bool, bool, bool) binary
   | Or : (bool, bool, bool) binary
 
@@ -30,18 +37,18 @@ type 'a signal =
   }
 
 and _ def =
+  | Undefined : 'a def
   | Const : 'a -> 'a def
+  | Tick : 'a def
   | Input : 'a def
   | Pre : 'a signal -> 'a def
   | Unary : ('a, 'b) unary * 'a signal -> 'b def
   | Binary : ('a, 'b, 'c) binary * 'a signal * 'b signal -> 'c def
   | Cond : bool signal * 'a signal * 'a signal -> 'a def
+  | Default : 'a signal * 'a signal -> 'a def
   | Knot : 'a def
-  | Loop : 'a init * 'a signal * 'a signal -> 'a def
-
-and 'a init =
-  | Nodes of 'a signal array
-  | Node of 'a signal * int
+  | Loop : 'a signal array * 'a signal * 'a signal -> 'a def
+  | Map : ('a -> 'b) * 'a signal -> 'b def
 
 type signal_key =
   | KPre of int
@@ -56,6 +63,7 @@ let eval_unary : type a b. (a, b) unary -> a -> b =
   | Neg -> Float.neg x
   | Abs -> Float.abs x
   | Sqrt -> Float.sqrt x
+  | Not -> Bool.not x
 ;;
 
 let eval_binary : type a b c. (a, b, c) binary -> a -> b -> c =

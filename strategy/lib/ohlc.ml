@@ -88,38 +88,41 @@ module Make () = struct
   module S' = Strategy.Make ()
   include S'
 
-  let open_ : float Language.signal = S'.input ()
-  let high : float Language.signal = S'.input ()
-  let low : float Language.signal = S'.input ()
-  let close : float Language.signal = S'.input ()
+  let open_ : float signal = S'.input ()
+  let high : float signal = S'.input ()
+  let low : float signal = S'.input ()
+  let close : float signal = S'.input ()
+  let bar_index = tick
+  let netprofit = const 0.0
 
   module Indicator = struct
     include S'.Indicator
 
     let tr =
-      let open S' in
       let prev_close = pre close in
       max (high -~ low) (max (abs (high -~ prev_close)) (abs (low -~ prev_close)))
     ;;
 
-    let atr n alpha = ema n alpha tr
+    let atr n =
+      let alpha = 1. /. float_of_int n in
+      loop ~init:[||] (fun p ->
+        default ((tr *~. alpha) +~ (p *~. (1. -. alpha))) (sma n tr))
+    ;;
   end
 
-  let backtest r (f : unit -> unit) =
+  let backtest (f : unit -> unit) =
     Utils.refuse_tty ();
     let ic = In_channel.stdin in
     let buf = Bytes.create message_size in
     let rec loop n =
       match next_bar ic buf with
       | Some bar ->
-        Runtime.(
-          tick
-            r
-            [ Set (open_, bar.open_)
-            ; Set (high, bar.high)
-            ; Set (low, bar.low)
-            ; Set (close, bar.close)
-            ]);
+        step
+          [ Set (open_, bar.open_)
+          ; Set (high, bar.high)
+          ; Set (low, bar.low)
+          ; Set (close, bar.close)
+          ];
         f ();
         loop (n + 1)
       | None -> prerr_endline "End of Stream"

@@ -1,3 +1,7 @@
 (test
  (name test_strategy)
  (libraries lib))
+
+(test
+ (name test_loop)
+ (libraries lib))

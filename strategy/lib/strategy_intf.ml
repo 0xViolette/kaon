@@ -1,55 +1,54 @@
 module type S = sig
-  val const : 'a -> 'a Language.signal
-  val input : unit -> 'a Language.signal
-  val pre : 'a Language.signal -> 'a Language.signal
-  val delay : int -> 'a Language.signal -> 'a Language.signal
-  val window : int -> 'a Language.signal -> 'a Language.signal list
+  type 'a signal
+  type set = Set : 'a signal * 'a -> set
 
-  val loop
-    :  init:'a Language.init
-    -> ('a Language.signal -> 'a Language.signal)
-    -> 'a Language.signal
-
-  val ( +~ ) : float Language.signal -> float Language.signal -> float Language.signal
-  val ( +~. ) : float Language.signal -> float -> float Language.signal
-  val ( +.~ ) : float -> float Language.signal -> float Language.signal
-  val ( *~ ) : float Language.signal -> float Language.signal -> float Language.signal
-  val ( *~. ) : float Language.signal -> float -> float Language.signal
-  val ( *.~ ) : float -> float Language.signal -> float Language.signal
-  val ( -~ ) : float Language.signal -> float Language.signal -> float Language.signal
-  val ( -~. ) : float Language.signal -> float -> float Language.signal
-  val ( -.~ ) : float -> float Language.signal -> float Language.signal
-  val ( /~ ) : float Language.signal -> float Language.signal -> float Language.signal
-  val ( /~. ) : float Language.signal -> float -> float Language.signal
-  val ( /.~ ) : float -> float Language.signal -> float Language.signal
-  val ( <~ ) : float Language.signal -> float Language.signal -> bool Language.signal
-  val ( <=~ ) : float Language.signal -> float Language.signal -> bool Language.signal
-  val ( >~ ) : float Language.signal -> float Language.signal -> bool Language.signal
-  val ( >=~ ) : float Language.signal -> float Language.signal -> bool Language.signal
-  val ( &&~ ) : bool Language.signal -> bool Language.signal -> bool Language.signal
-  val ( ||~ ) : bool Language.signal -> bool Language.signal -> bool Language.signal
-  val ( =~ ) : 'a Language.signal -> 'a Language.signal -> bool Language.signal
-  val ( !=~ ) : 'a Language.signal -> 'a Language.signal -> bool Language.signal
-
-  val cond
-    :  bool Language.signal
-    -> 'a Language.signal
-    -> 'a Language.signal
-    -> 'a Language.signal
-
-  val max : float Language.signal -> float Language.signal -> float Language.signal
-  val min : float Language.signal -> float Language.signal -> float Language.signal
-  val abs : float Language.signal -> float Language.signal
-  val compile : unit -> Runtime.t
+  val tick : int signal
+  val compile : unit -> unit
+  val step : set list -> unit
+  val const : 'a -> 'a signal
+  val undefined : unit -> 'a signal
+  val value : 'a signal -> 'a option
+  val input : unit -> 'a signal
+  val pre : 'a signal -> 'a signal
+  val delay : int -> 'a signal -> 'a signal
+  val window : int -> 'a signal -> 'a signal list
+  val loop : init:'a signal array -> ('a signal -> 'a signal) -> 'a signal
+  val ( +~ ) : float signal -> float signal -> float signal
+  val ( +~. ) : float signal -> float -> float signal
+  val ( +.~ ) : float -> float signal -> float signal
+  val ( *~ ) : float signal -> float signal -> float signal
+  val ( *~. ) : float signal -> float -> float signal
+  val ( *.~ ) : float -> float signal -> float signal
+  val ( -~ ) : float signal -> float signal -> float signal
+  val ( -~. ) : float signal -> float -> float signal
+  val ( -.~ ) : float -> float signal -> float signal
+  val ( /~ ) : float signal -> float signal -> float signal
+  val ( /~. ) : float signal -> float -> float signal
+  val ( /.~ ) : float -> float signal -> float signal
+  val ( <~ ) : float signal -> float signal -> bool signal
+  val ( <=~ ) : float signal -> float signal -> bool signal
+  val ( >~ ) : float signal -> float signal -> bool signal
+  val ( >=~ ) : float signal -> float signal -> bool signal
+  val ( &&~ ) : bool signal -> bool signal -> bool signal
+  val ( ||~ ) : bool signal -> bool signal -> bool signal
+  val ( =~ ) : 'a signal -> 'a signal -> bool signal
+  val ( !=~ ) : 'a signal -> 'a signal -> bool signal
+  val cond : bool signal -> 'a signal -> 'a signal -> 'a signal
+  val default : 'a signal -> 'a signal -> 'a signal
+  val abs : float signal -> float signal
+  val not : bool signal -> bool signal
+  val sqrt : float signal -> float signal
+  val map : ('a -> 'b) -> 'a signal -> 'b signal
 
   module Indicator : sig
-    val sma : int -> float Language.signal -> float Language.signal
-    val ema : int -> float -> float Language.signal -> float Language.signal
-    val crossover : float Language.signal -> float Language.signal -> bool Language.signal
-
-    val crossunder
-      :  float Language.signal
-      -> float Language.signal
-      -> bool Language.signal
+    val max : float signal -> float signal -> float signal
+    val min : float signal -> float signal -> float signal
+    val sma : int -> float signal -> float signal
+    val ema : int -> float signal -> float signal
+    val crossover : float signal -> float signal -> bool signal
+    val highest : int -> float signal -> float signal
+    val lowest : int -> float signal -> float signal
+    val bars_since : bool signal -> float signal
+    val crossunder : float signal -> float signal -> bool signal
   end
 end

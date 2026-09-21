@@ -22,8 +22,10 @@ let make g rank def =
   else failwith "Cannot mess with a compiled graph"
 ;;
 
+let undefined g = make g 0 Undefined
 let const g v = make g 0 (Const v)
 let input g = make g 0 Input
+let tick g = make g 0 Tick
 
 (* constant folding: an operation on constants is itself a constant *)
 let unary =
@@ -44,6 +46,7 @@ let binary =
 let neg = unary Neg
 let abs = unary Abs
 let sqrt = unary Sqrt
+let not = unary Not
 
 (*binary operations*)
 let add = binary Add
@@ -79,22 +82,29 @@ let rec window g length node =
   if length = 0 then [] else node :: window g (length - 1) (pre g node)
 ;;
 
-let cond g p t e = make g (1 + Int.max p.rank (Int.max t.rank e.rank)) (Cond (p, t, e))
+let cond g p t e = make g (1 + (Int.max p.rank @@ Int.max t.rank e.rank)) (Cond (p, t, e))
 
-let loop g ~(init : 'a init) (body : 'a Language.signal -> 'a Language.signal)
+(* [default a b] is the value of [a] while [a] is [Some], else the value of
+   [b] — the non-strict escape hatch (Pine's [nz]) that lets a loop body
+   fall back to a seed while the recursion has not produced a value yet *)
+let default g a b = make g (1 + Int.max a.rank b.rank) (Default (a, b))
+
+(* [loop ~init body]: on bar i < length(init) the loop copies init.(i)
+   *verbatim* (Some or None — exactly what the source holds that bar);
+   from bar length(init) on it takes the value of [body knot], where [knot]
+   holds the loop's value from the previous bar. init = [||] starts the
+   body on bar 0. A None handed to the recursion is usually permanent:
+   seed with values that are valid at the bar they are consumed. *)
+let loop
+      g
+      ~(init : 'a Language.signal array)
+      (body : 'a Language.signal -> 'a Language.signal)
   : 'a Language.signal
   =
-  (match init with
-   | Nodes nodes ->
-     if Array.length nodes = 0 then invalid_arg "loop: init nodes cannot be empty"
-   | Node (_, len) -> if len <= 0 then invalid_arg "loop: init length must be positive");
-  let initial_rank =
-    match init with
-    | Nodes nodes ->
-      Array.fold_left (fun max_rank node -> Int.max max_rank node.rank) 0 nodes
-    | Node (node, _) -> node.rank
-  in
+  let initial_rank = init |> Array.map (fun s -> s.rank) |> Array.fold_left Int.max 0 in
   let knot = make g 0 Knot in
   let result = body knot in
   make g (1 + Int.max result.rank initial_rank) (Loop (init, knot, result))
 ;;
+
+let map g f a = make g (1 + a.rank) (Language.Map (f, a))

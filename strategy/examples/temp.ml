@@ -35,7 +35,8 @@ let raw_over, raw_under =
   Indicator.crossover raw_fast raw_slow, Indicator.crossunder raw_fast raw_slow
 ;;
 
-let raw_rt = Raw.compile ()
+Raw.compile ();;
+
 let raw_probes = [| 1., 2.; 0., 2.; 3., 2.; 4., 2.; 2., 2.; 3., 2.; 1., 2.; 3., 2. |]
 
 let raw_notes =
@@ -90,7 +91,7 @@ let fast, slow, cross_over, cross_under =
   fast, slow, cross_over, cross_under
 ;;
 
-let trend_rt = Trend.compile ()
+Trend.compile ();;
 
 let prices =
   [| 5.; 6.; 7.; 8.; 9.; 10.; 9.; 8.; 7.; 6.; 5.; 4.; 5.; 6.; 7.; 8.; 9.; 10. |]
@@ -108,9 +109,9 @@ let () =
     "what happened";
   Array.iteri
     (fun i (f, s) ->
-       Runtime.(tick raw_rt [ Set (raw_fast, f); Set (raw_slow, s) ]);
-       let over = Runtime.value raw_rt raw_over in
-       let under = Runtime.value raw_rt raw_under in
+       Raw.step [ Set (raw_fast, f); Set (raw_slow, s) ];
+       let over = Raw.value raw_over in
+       let under = Raw.value raw_under in
        let mark =
          if over = raw_expected_over.(i) && under = raw_expected_under.(i)
          then "OK"
@@ -139,9 +140,9 @@ let () =
   let sells = ref 0 in
   Array.iteri
     (fun i p ->
-       Runtime.(tick trend_rt [ Set (close, p) ]);
-       let co = Runtime.value trend_rt cross_over in
-       let cu = Runtime.value trend_rt cross_under in
+       Trend.step [ Set (close, p) ];
+       let co = Trend.value cross_over in
+       let cu = Trend.value cross_under in
        let signal =
          match co, cu with
          | Some true, _ ->
@@ -155,9 +156,9 @@ let () =
        Printf.printf
          "%-4d %-6s %-6s %-6s %-9s %-9s%s\n"
          i
-         (pp_float (Runtime.value trend_rt close))
-         (pp_float (Runtime.value trend_rt fast))
-         (pp_float (Runtime.value trend_rt slow))
+         (pp_float (Trend.value close))
+         (pp_float (Trend.value fast))
+         (pp_float (Trend.value slow))
          (pp_bool co)
          (pp_bool cu)
          signal)
