@@ -10,8 +10,8 @@ open Lib
    So breaking *out of* a touch ([pre a = pre b]) does NOT fire, and
    landing exactly *on* the other line ([a = b]) does NOT fire either.
    Each fires a single-bar pulse: it stays false while [a] remains on
-   the new side. While warming up (no previous bar yet) it is [None],
-   not [false]. *)
+   the new side. While warming up (no previous bar yet) it is [Pending]
+   (printed None), not [false]. *)
 
 let pp_float = function
   | None -> "None"
@@ -22,6 +22,11 @@ let pp_bool = function
   | None -> "None"
   | Some true -> "true"
   | Some false -> "false"
+;;
+
+let value_option = function
+  | None -> None
+  | Some x -> Some x
 ;;
 
 (* Part 1: crossovers in isolation, fed hand-picked (fast, slow) pairs. *)
@@ -113,15 +118,17 @@ let () =
        let over = Raw.value raw_over in
        let under = Raw.value raw_under in
        let mark =
-         if over = raw_expected_over.(i) && under = raw_expected_under.(i)
+         if
+           value_option over = raw_expected_over.(i)
+           && value_option under = raw_expected_under.(i)
          then "OK"
          else "MISMATCH"
        in
        Printf.printf
-         "%-4d %-6s %-6s %-9s %-10s [%s] %s\n"
+         "%-4d %-6.2f %-6.2f %-9s %-10s [%s] %s\n"
          i
-         (pp_float (Some f))
-         (pp_float (Some s))
+         f
+         s
          (pp_bool over)
          (pp_bool under)
          mark
@@ -144,7 +151,7 @@ let () =
        let co = Trend.value cross_over in
        let cu = Trend.value cross_under in
        let signal =
-         match co, cu with
+         match value_option co, value_option cu with
          | Some true, _ ->
            incr buys;
            "  <-- GOLDEN CROSS (buy)"

@@ -1,9 +1,10 @@
 open Lib
 
-(* Volatility-shock entry + ATR trailing stop, under the simple loop
-   semantics: [loop ~init body] copies init.(i) VERBATIM on bar i (Some
-   or None), then runs the body. There is no warmup bookkeeping — the
-   user seeds with values that are valid at the bar they are consumed.
+(* Volatility-shock entry + ATR trailing stop, under the recurrence
+   semantics: [recurrence body] starts its knot as [Pending] and runs
+   [body] from the first bar, feeding each result back on the next bar.
+   There is no warmup bookkeeping — a body that needs a seed selects it
+   with [cond (is_pending prev) seed ...] while the knot is pending.
 
    Strategy:
    - ENTRY: close jumps >5% over the previous close (unknown bar).
@@ -11,18 +12,18 @@ open Lib
    - STOP:  once in, trail max(prev_stop, close - 2*ATR(6)); exit when
      close falls through the stop.
 
-   Act A (the mistake): seeding the stop loop through [init] with the
-   trailing-stop expression. init.(0) is copied on bar 0 — where the ATR
-   is None — and that None enters the recursion permanently. The stop is
-   dead; the exit never fires. (The fill survives only because its body
-   selects [close] on the event bar without touching [prev] — bodies that
-   use prev strictly have no such rescue.)
+   Act A (the mistake): an unbootstrapped stop loop. The knot starts
+   [Pending] and [max prev trail] never escapes it — [Pending] in,
+   [Pending] out, forever. The stop is dead; the exit never fires. (The
+   fill survives only because its body selects [close] on the event bar
+   without touching [prev] — bodies that use prev strictly have no such
+   rescue.)
 
    Act B (the fix): event-driven and history-dependent seeds belong in
-   the BODY, not in init. [default] falls back to the seed while the
-   recursion is still None (Pine's nz); [cond] gates the strategy on the
-   entry event. No fixed bar arithmetic anywhere — the strategy starts
-   whenever the event fires and the ATR happens to be ready. *)
+   the BODY, selected while the knot is pending (Pine's nz). [cond] gates
+   the strategy on the entry event. No fixed bar arithmetic anywhere —
+   the strategy starts whenever the event fires and the ATR happens to be
+   ready. *)
 
 let pp_float = function
   | None -> "None"
@@ -34,7 +35,12 @@ let pp_bool = function
   | Some b -> if b then "true" else "false"
 ;;
 
-(* ~fixed:false = Act A (init-seeded, dead); ~fixed:true = Act B. *)
+let value_option = function
+  | None -> None
+  | Some x -> Some x
+;;
+
+(* ~fixed:false = Act A (unbootstrapped, dead); ~fixed:true = Act B. *)
 let build m ~fixed =
   let module M = (val m : Strategy_intf.S) in
   let open M in
@@ -42,21 +48,22 @@ let build m ~fixed =
   let shock = close >~ pre close *~. 1.05 in
   let tr = abs (close -~ pre close) in
   let atr6 =
-    loop ~init:[||] (fun p ->
-      default ((tr *~. (1. /. 6.)) +~ (p *~. (5. /. 6.))) (Indicator.sma 6 tr))
+    recurrence (fun p ->
+      cond (is_pending p) (Indicator.sma 6 tr) ((tr *~. (1. /. 6.)) +~ (p *~. (5. /. 6.))))
   in
   let trail = close -~ (atr6 *~. 2.) in
   if fixed
   then (
     (* latch the fill price: on the shock bar take close, else keep prev *)
-    let fill = loop ~init:[||] (fun prev -> cond shock close prev) in
+    let fill = recurrence (fun prev -> cond shock close prev) in
     (* entered = Some true from the first shock on *)
     let entered = Indicator.bars_since shock >=~ const 0. in
-    (* trail the stop once in; [default prev trail] bootstraps the ratchet
-       from the trail itself until the stop has a value *)
+    (* trail the stop once in; [cond (is_pending prev) trail prev]
+       bootstraps the ratchet from the trail itself until the stop has a
+       value *)
     let stop =
-      loop ~init:[||] (fun prev ->
-        cond entered (Indicator.max (default prev trail) trail) prev)
+      recurrence (fun prev ->
+        cond entered (Indicator.max (cond (is_pending prev) trail prev) trail) prev)
     in
     let exit = close <~ stop in
     compile ();
@@ -64,10 +71,10 @@ let build m ~fixed =
       step [ Set (close, c) ];
       value shock, value fill, value stop, value exit)
   else (
-    let fill =
-      loop ~init:[| cond shock close (undefined ()) |] (fun prev -> cond shock close prev)
-    in
-    let stop = loop ~init:[| trail |] (fun prev -> Indicator.max prev trail) in
+    (* the unbootstrapped stop: the knot's initial [Pending] flows through
+       [max] and back into the knot — the stop never comes to life *)
+    let fill = recurrence (fun prev -> cond shock close prev) in
+    let stop = recurrence (fun prev -> Indicator.max prev trail) in
     let exit = close <~ stop in
     compile ();
     fun c ->
@@ -93,14 +100,14 @@ let run name closes expected_stop ~fixed =
     (fun i c ->
        let shock, fill, stop, exit = step c in
        let note =
-         if shock = Some true
+         if value_option shock = Some true
          then "ENTRY shock"
-         else if exit = Some true
+         else if value_option exit = Some true
          then "STOP HIT -> exit"
          else ""
        in
        let ok =
-         match stop, expected_stop.(i) with
+         match value_option stop, expected_stop.(i) with
          | None, None -> true
          | Some a, Some e -> Float.abs (a -. e) < 1e-4
          | _ -> false
@@ -127,11 +134,11 @@ let early =
   [| 100.; 101.; 107.; 108.; 110.; 112.; 115.; 117.; 116.; 114.; 111.; 108.; 105.; 104. |]
 ;;
 
-(* Act A — the init copies trail's bar-0 None: the stop (and the strategy)
-   never comes to life. *)
+(* Act A — the knot's initial Pending circulates through [max] forever:
+   the stop (and the strategy) never comes to life. *)
 let () =
   run
-    "Act A: stop seeded via init (verbatim copy of a not-yet-valid signal)"
+    "Act A: unbootstrapped stop recurrence (dead)"
     early
     (Array.make 14 None)
     ~fixed:false
@@ -141,7 +148,7 @@ let () =
    (honest: no stop before that), then trails and catches the decline. *)
 let () =
   run
-    "Act B: stop seeded in the body via default/cond — early shock"
+    "Act B: stop seeded in the body via cond/is_pending — early shock"
     early
     [| None
      ; None

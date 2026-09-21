@@ -1,9 +1,9 @@
 open Lib
 
-(* Loop semantics suite: [loop ~init body] copies init.(i) verbatim on
-   bar i (Some or None), then runs [body]. No warmup metadata, no waiting:
-   the user seeds with values that are valid at the bar they are consumed.
-   Each scenario runs a fresh graph against a hand-computed or
+(* Recurrence semantics suite: [recurrence body] starts its knot as
+   [Pending], runs [body] from the first bar, and feeds each result back on
+   the next bar. Bodies use [is_pending] + [cond] when they need an explicit
+   bootstrap. Each scenario runs a fresh graph against a hand-computed or
    reference-recurrence expectation. *)
 
 let failures = ref 0
@@ -19,6 +19,11 @@ let opt_close a b =
 let pp_float = function
   | None -> "None"
   | Some x -> Printf.sprintf "%.6g" x
+;;
+
+let value_option = function
+  | None -> None
+  | Some x -> Some x
 ;;
 
 type driver =
@@ -121,7 +126,7 @@ let bars_since_series threshold xs =
 
 (* ------------------------------- scenarios ------------------------------- *)
 
-(* 1. Plain ema on an input: sma seed while the recursion is None, then
+(* 1. Plain ema on an input: sma seed while the recursion is pending, then
    the recursion takes over. *)
 let () =
   let xs = [| 1.; 2.; 3.; 4.; 5.; 6.; 7.; 8. |] in
@@ -132,11 +137,13 @@ let () =
     let inp = input () in
     let probe = Indicator.ema 3 inp in
     compile ();
-    { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
 ;;
 
 (* 2. ema of a history-carrying signal: the seed (sma 3 of sma 4) takes
-   as long as it takes; [default] keeps selecting it until the recursion
+   as long as it takes; [is_pending] keeps selecting it until the recursion
    has a value. *)
 let () =
   let xs = [| 2.; 4.; 6.; 8.; 10.; 12.; 14.; 16.; 18.; 20.; 22.; 24. |] in
@@ -147,11 +154,13 @@ let () =
     let inp = input () in
     let probe = Indicator.(ema 3 (sma 4 inp)) in
     compile ();
-    { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
 ;;
 
-(* 3. ema of an event-driven signal: the seed is None until two bars after
-   the event fires; the loop simply keeps seeding until then. *)
+(* 3. ema of an event-driven signal: the seed is pending until two bars
+   after the event fires; the recurrence keeps seeding until then. *)
 let () =
   let xs = [| 1.; 1.; 9.; 1.; 1.; 2.; 1.; 1.; 1.; 1. |] in
   let expected = ema_series 3 (bars_since_series 5. xs) in
@@ -161,80 +170,92 @@ let () =
     let inp = input () in
     let probe = Indicator.(ema 3 (bars_since (inp >~ const 5.))) in
     compile ();
-    { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
 ;;
 
-(* 4. Nested loops: ema of ema. *)
+(* 4. Nested recurrences: ema of ema. *)
 let () =
   let xs = [| 1.; 2.; 3.; 4.; 5.; 6.; 7.; 8.; 9.; 10. |] in
   let expected = ema_series 2 (ema_series 3 (Array.map (fun x -> Some x) xs)) in
-  run "ema 2 (ema 3 inp) — nested loops" xs expected (fun m ->
+  run "ema 2 (ema 3 inp) — nested recurrences" xs expected (fun m ->
     let module M = (val m : Strategy_intf.S) in
     let open M in
     let inp = input () in
     let probe = Indicator.(ema 2 (ema 3 inp)) in
     compile ();
-    { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
 ;;
 
-(* 5. Verbatim per-bar seeds: init.(i) is copied on bar i, then the body. *)
+(* 5. Explicit constant bootstrap: the knot is [Pending] on the first bar,
+   then carries the previous result. *)
 let () =
   let xs = [| 1.; 2.; 3.; 4.; 5.; 6. |] in
   let expected = [| Some 0.; Some 1.; Some 2.; Some 3.; Some 4.; Some 5. |] in
-  run "init [|const 0; const 1; const 2|], body = prev + 1" xs expected (fun m ->
+  run "recurrence bootstrap const 0, body = prev + 1" xs expected (fun m ->
     let module M = (val m : Strategy_intf.S) in
     let open M in
     let inp = input () in
-    let probe = loop ~init:[| const 0.; const 1.; const 2. |] (fun p -> p +~. 1.) in
+    let probe = recurrence (fun p -> cond (is_pending p) (const 0.) (p +~. 1.)) in
     compile ();
-    { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
 ;;
 
-(* 6. One seed repeated for n bars is Array.make — no second construct. *)
-let () =
-  let xs = [| 1.; 2.; 3.; 4.; 5.; 6. |] in
-  let expected = [| Some 7.; Some 7.; Some 7.; Some 8.; Some 9.; Some 10. |] in
-  run "init (Array.make 3 (const 7)), body = prev + 1" xs expected (fun m ->
-    let module M = (val m : Strategy_intf.S) in
-    let open M in
-    let inp = input () in
-    let probe = loop ~init:(Array.make 3 (const 7.)) (fun p -> p +~. 1.) in
-    compile ();
-    { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
-;;
-
-(* 7. Empty init is legal: the body runs from bar 0; [default] bootstraps
-   the recursion from a fallback while the knot is still None. *)
-let () =
-  let xs = [| 1.; 2.; 3.; 4. |] in
-  let expected = [| Some 10.; Some 11.; Some 12.; Some 13. |] in
-  run "init [||] + default bootstrap" xs expected (fun m ->
-    let module M = (val m : Strategy_intf.S) in
-    let open M in
-    let inp = input () in
-    let probe = loop ~init:[||] (fun p -> default (p +~. 1.) (const 10.)) in
-    compile ();
-    { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
-;;
-
-(* 8. THE CONTRACT, stated negatively: init is verbatim. sma 2 inp is None
-   on bar 0, the loop copies that None into the recursion, and the loop
-   never recovers. Seeding with not-yet-valid signals is a user error —
-   use [default] in the body (scenario 7) for history-carrying seeds. *)
+(* 6. Without a bootstrap, [Pending] propagates through the body and the
+   recurrence never produces a value. *)
 let () =
   let xs = [| 1.; 2.; 3.; 4.; 5.; 6. |] in
   let expected = [| None; None; None; None; None; None |] in
-  run "verbatim init: seeding a None kills the loop" xs expected (fun m ->
+  run "unbootstrapped recurrence stays pending" xs expected (fun m ->
     let module M = (val m : Strategy_intf.S) in
     let open M in
     let inp = input () in
-    let probe = loop ~init:[| Indicator.sma 2 inp |] (fun p -> p +~. 1.) in
+    let probe = recurrence (fun p -> p +~. 1.) in
     compile ();
-    { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
 ;;
 
-(* 9. Latch: hold the value of [inp] from the last bar where it exceeded
-   5 — event-driven state with no init at all. *)
+(* 7. The fallback branch can come from another signal; it is selected only
+   while the knot is pending. *)
+let () =
+  let xs = [| 1.; 2.; 3.; 4. |] in
+  let expected = [| Some 1.; Some 2.; Some 3.; Some 4. |] in
+  run "recurrence bootstrap from input" xs expected (fun m ->
+    let module M = (val m : Strategy_intf.S) in
+    let open M in
+    let inp = input () in
+    let probe = recurrence (fun p -> cond (is_pending p) inp (p +~. 1.)) in
+    compile ();
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
+;;
+
+(* 8. [cond] + [is_pending] provide a pointwise fallback: the delayed input
+   while present, otherwise a constant. *)
+let () =
+  let xs = [| 1.; 2.; 3.; 4.; 5.; 6. |] in
+  let expected = [| Some 5.; Some 5.; Some 1.; Some 2.; Some 3.; Some 4. |] in
+  run "fallback to const 5 until delay 2 inp is present" xs expected (fun m ->
+    let module M = (val m : Strategy_intf.S) in
+    let open M in
+    let inp = input () in
+    let delayed = delay 2 inp in
+    let probe = cond (is_pending delayed) (const 5.) delayed in
+    compile ();
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
+;;
+
+(* 9. Latch: hold the value of [inp] from the last bar where it exceeded 5. *)
 let () =
   let xs = [| 1.; 1.; 9.; 1.; 1.; 8.; 1. |] in
   let expected = [| None; None; Some 9.; Some 9.; Some 9.; Some 8.; Some 8. |] in
@@ -242,23 +263,26 @@ let () =
     let module M = (val m : Strategy_intf.S) in
     let open M in
     let inp = input () in
-    let probe = loop ~init:[||] (fun prev -> cond (inp >~ const 5.) inp prev) in
+    let probe = recurrence (fun prev -> cond (inp >~ const 5.) inp prev) in
     compile ();
-    { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
 ;;
 
-(* 10. default pointwise: the first signal while it is Some, else the
-   second. *)
+(* 10. A recurrence can combine its previous value with the current input. *)
 let () =
   let xs = [| 1.; 2.; 3.; 4.; 5.; 6. |] in
-  let expected = [| Some 5.; Some 5.; Some 1.; Some 2.; Some 3.; Some 4. |] in
-  run "default (delay 2 inp) (const 5)" xs expected (fun m ->
+  let expected = [| Some 1.; Some 3.; Some 6.; Some 10.; Some 15.; Some 21. |] in
+  run "cumulative sum recurrence" xs expected (fun m ->
     let module M = (val m : Strategy_intf.S) in
     let open M in
     let inp = input () in
-    let probe = default (delay 2 inp) (const 5.) in
+    let probe = recurrence (fun prev -> cond (is_pending prev) inp (prev +~ inp)) in
     compile ();
-    { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
 ;;
 
 (* 11. bar_index is [tick], which counts bars from 1 (the runtime seeds
@@ -272,12 +296,14 @@ let () =
     let inp = input () in
     let probe = map Float.of_int tick in
     compile ();
-    { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
 ;;
 
 let () =
   if !failures = 0
-  then print_endline "All loop scenarios behaved as expected."
+  then print_endline "All recurrence scenarios behaved as expected."
   else (
     Printf.eprintf "%d mismatch(es) found.\n" !failures;
     exit 1)

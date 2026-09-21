@@ -47,6 +47,8 @@ let neg = unary Neg
 let abs = unary Abs
 let sqrt = unary Sqrt
 let not = unary Not
+let floor = unary Floor
+let ceil = unary Ceil
 
 (*binary operations*)
 let add = binary Add
@@ -83,11 +85,7 @@ let rec window g length node =
 ;;
 
 let cond g p t e = make g (1 + (Int.max p.rank @@ Int.max t.rank e.rank)) (Cond (p, t, e))
-
-(* [default a b] is the value of [a] while [a] is [Some], else the value of
-   [b] — the non-strict escape hatch (Pine's [nz]) that lets a loop body
-   fall back to a seed while the recursion has not produced a value yet *)
-let default g a b = make g (1 + Int.max a.rank b.rank) (Default (a, b))
+let is_pending g s = make g (1 + s.rank) (IsPending s)
 
 (* [loop ~init body]: on bar i < length(init) the loop copies init.(i)
    *verbatim* (Some or None — exactly what the source holds that bar);
@@ -95,16 +93,10 @@ let default g a b = make g (1 + Int.max a.rank b.rank) (Default (a, b))
    holds the loop's value from the previous bar. init = [||] starts the
    body on bar 0. A None handed to the recursion is usually permanent:
    seed with values that are valid at the bar they are consumed. *)
-let loop
-      g
-      ~(init : 'a Language.signal array)
-      (body : 'a Language.signal -> 'a Language.signal)
-  : 'a Language.signal
-  =
-  let initial_rank = init |> Array.map (fun s -> s.rank) |> Array.fold_left Int.max 0 in
+let recurrence g (body : 'a Language.signal -> 'a Language.signal) : 'a Language.signal =
   let knot = make g 0 Knot in
   let result = body knot in
-  make g (1 + Int.max result.rank initial_rank) (Loop (init, knot, result))
+  make g (1 + result.rank) (Rec (knot, result))
 ;;
 
 let map g f a = make g (1 + a.rank) (Language.Map (f, a))

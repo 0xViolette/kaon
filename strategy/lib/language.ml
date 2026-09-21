@@ -2,12 +2,6 @@
 A signal can only be float or bool [numerical stream or logical stream]
 *)
 
-type (_, _) unary =
-  | Neg : (float, float) unary
-  | Abs : (float, float) unary
-  | Sqrt : (float, float) unary
-  | Not : (bool, bool) unary
-
 type (_, _, _) binary =
   (*------------arithmetic-------------*)
   | Add : (float, float, float) binary
@@ -34,26 +28,40 @@ type 'a signal =
   ; graph_id : int
   ; rank : int
   ; def : 'a def
+  ; (* per-bar runtime state, kept on the node itself so it stays typed *)
+    mutable cur : 'a option
+  ; mutable prev : 'a option
+  ; (* a knot is wired to the loop that owns it when the graph is compiled *)
+    mutable knot_target : 'a signal option
+  ; (* hash-cons slot: a node has at most one [Pre] child *)
+    mutable pre_child : 'a signal option
   }
+
+and (_, _) unary =
+  | Neg : (float, float) unary
+  | Abs : (float, float) unary
+  | Sqrt : (float, float) unary
+  | Not : (bool, bool) unary
+  | Floor : (float, float) unary
+  | Ceil : (float, float) unary
 
 and _ def =
   | Undefined : 'a def
   | Const : 'a -> 'a def
-  | Tick : 'a def
+  | IsPending : 'a signal -> bool def
+  | Tick : int def
   | Input : 'a def
   | Pre : 'a signal -> 'a def
   | Unary : ('a, 'b) unary * 'a signal -> 'b def
   | Binary : ('a, 'b, 'c) binary * 'a signal * 'b signal -> 'c def
   | Cond : bool signal * 'a signal * 'a signal -> 'a def
-  | Default : 'a signal * 'a signal -> 'a def
   | Knot : 'a def
-  | Loop : 'a signal array * 'a signal * 'a signal -> 'a def
+  | Rec : 'a signal * 'a signal -> 'a def
   | Map : ('a -> 'b) * 'a signal -> 'b def
 
 type signal_key =
-  | KPre of int
-  | KUnary of int * int
-  | KBinary of int * int * int
+  | KUnary : ('a, 'b) unary * int -> signal_key
+  | KBinary : ('a, 'b, 'c) binary * int * int -> signal_key
 
 type any_signal = Any : 'a signal -> any_signal [@@unboxed]
 
@@ -64,6 +72,8 @@ let eval_unary : type a b. (a, b) unary -> a -> b =
   | Abs -> Float.abs x
   | Sqrt -> Float.sqrt x
   | Not -> Bool.not x
+  | Floor -> Float.floor x
+  | Ceil -> Float.ceil x
 ;;
 
 let eval_binary : type a b c. (a, b, c) binary -> a -> b -> c =

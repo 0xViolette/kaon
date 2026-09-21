@@ -12,7 +12,7 @@ module type S = sig
   val pre : 'a signal -> 'a signal
   val delay : int -> 'a signal -> 'a signal
   val window : int -> 'a signal -> 'a signal list
-  val loop : init:'a signal array -> ('a signal -> 'a signal) -> 'a signal
+  val recurrence : ('a signal -> 'a signal) -> 'a signal
   val ( +~ ) : float signal -> float signal -> float signal
   val ( +~. ) : float signal -> float -> float signal
   val ( +.~ ) : float -> float signal -> float signal
@@ -34,10 +34,12 @@ module type S = sig
   val ( =~ ) : 'a signal -> 'a signal -> bool signal
   val ( !=~ ) : 'a signal -> 'a signal -> bool signal
   val cond : bool signal -> 'a signal -> 'a signal -> 'a signal
-  val default : 'a signal -> 'a signal -> 'a signal
   val abs : float signal -> float signal
   val not : bool signal -> bool signal
   val sqrt : float signal -> float signal
+  val floor : float signal -> float signal
+  val ceil : float signal -> float signal
+  val is_pending : float signal -> bool signal
   val map : ('a -> 'b) -> 'a signal -> 'b signal
 
   module Indicator : sig

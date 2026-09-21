@@ -105,8 +105,8 @@ module Make () = struct
 
     let atr n =
       let alpha = 1. /. float_of_int n in
-      loop ~init:[||] (fun p ->
-        default ((tr *~. alpha) +~ (p *~. (1. -. alpha))) (sma n tr))
+      recurrence (fun p ->
+        cond (is_pending p) (sma n tr) ((tr *~. alpha) +~ (p *~. (1. -. alpha))))
     ;;
   end
 

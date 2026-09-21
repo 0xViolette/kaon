@@ -14,6 +14,11 @@ let pp_float = function
   | Some x -> Printf.sprintf "%g" x
 ;;
 
+let value_option = function
+  | None -> None
+  | Some x -> Some x
+;;
+
 let failures = ref 0
 
 type ('a, 'b) driver =
@@ -52,7 +57,9 @@ let bars_since_gt_5 m =
   let inp = input () in
   let probe = Indicator.bars_since (inp >~ const 5.) in
   compile ();
-  { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) }
+  { step_in = (fun x -> step [ Set (inp, x) ])
+  ; read = (fun () -> value_option (value probe))
+  }
 ;;
 
 (* 1. Two events with counting in between. *)
@@ -104,7 +111,9 @@ let () =
        let inp = input () in
        let probe = Indicator.bars_since (pre inp >~ const 5.) in
        compile ();
-       { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+       { step_in = (fun x -> step [ Set (inp, x) ])
+       ; read = (fun () -> value_option (value probe))
+       })
 ;;
 
 (* 5/6. Sanity: highest / lowest over a 3-bar window (None during warmup). *)
@@ -121,7 +130,9 @@ let () =
        let inp = input () in
        let probe = Indicator.highest 3 inp in
        compile ();
-       { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+       { step_in = (fun x -> step [ Set (inp, x) ])
+       ; read = (fun () -> value_option (value probe))
+       })
 ;;
 
 let () =
@@ -137,7 +148,9 @@ let () =
        let inp = input () in
        let probe = Indicator.lowest 3 inp in
        compile ();
-       { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+       { step_in = (fun x -> step [ Set (inp, x) ])
+       ; read = (fun () -> value_option (value probe))
+       })
 ;;
 
 (* 7. map applies pointwise to the unwrapped value. *)
@@ -154,7 +167,9 @@ let () =
        let inp = input () in
        let probe = map (fun x -> x *. 10.) inp in
        compile ();
-       { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+       { step_in = (fun x -> step [ Set (inp, x) ])
+       ; read = (fun () -> value_option (value probe))
+       })
 ;;
 
 (* 8. map propagates None (here via the warmup of [pre]). *)
@@ -171,7 +186,9 @@ let () =
        let inp = input () in
        let probe = map (fun x -> x +. 1.) (pre inp) in
        compile ();
-       { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value probe) })
+       { step_in = (fun x -> step [ Set (inp, x) ])
+       ; read = (fun () -> value_option (value probe))
+       })
 ;;
 
 (* 9. Heterogeneous inputs in one step: a float signal and a bool signal
@@ -192,16 +209,15 @@ let () =
        let probe = cond flag (price +~. 1.) (price -~. 1.) in
        compile ();
        { step_in = (fun (f, b) -> step [ Set (price, f); Set (flag, b) ])
-       ; read = (fun () -> value probe)
+       ; read = (fun () -> value_option (value probe))
        })
 ;;
 
-(* 10. A user-level custom [loop] built with the re-exported [init]
-       constructors — no reference to [Language] anywhere. A plain counter:
-       0 on the first bar, incrementing each bar after. *)
+(* 10. A user-level custom recurrence. The knot starts [Pending], so the
+       body bootstraps it with [cond] + [is_pending], then increments. *)
 let () =
   run
-    "Scenario 10: custom loop via M.init constructors"
+    "Scenario 10: custom recurrence"
     pp_raw_float
     pp_float
     [| 100.; 200.; 300.; 400. |]
@@ -210,9 +226,13 @@ let () =
        let module M = (val m : Strategy_intf.S) in
        let open M in
        let inp = input () in
-       let counter = loop ~init:[| const 0. |] (fun prev -> prev +~. 1.) in
+       let counter =
+         recurrence (fun prev -> cond (is_pending prev) (const 0.) (prev +~. 1.))
+       in
        compile ();
-       { step_in = (fun x -> step [ Set (inp, x) ]); read = (fun () -> value counter) })
+       { step_in = (fun x -> step [ Set (inp, x) ])
+       ; read = (fun () -> value_option (value counter))
+       })
 ;;
 
 let () =

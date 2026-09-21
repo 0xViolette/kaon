@@ -26,11 +26,14 @@ module Make () : S = struct
   let pre x = Graph.pre g x
   let delay n x = Graph.delay g n x
   let window n x = Graph.window g n x
-  let loop ~init f = Graph.loop g ~init f
+  let recurrence f = Graph.recurrence g f
   let neg = Graph.neg g
   let abs = Graph.abs g
   let sqrt = Graph.sqrt g
   let not = Graph.not g
+  let floor = Graph.floor g
+  let ceil = Graph.ceil g
+  let is_pending s = Graph.is_pending g s
   let add = Graph.add g
   let add_const_r s x = Graph.add g s (const x)
   let add_const_l x s = Graph.add g s (const x)
@@ -48,7 +51,6 @@ module Make () : S = struct
   let gt = Graph.gt g
   let ge = Graph.ge g
   let cond i t e = Graph.cond g i t e
-  let default a b = Graph.default g a b
   let ( +~ ) = add
   let ( +~. ) = add_const_r
   let ( +.~ ) = add_const_l
@@ -87,17 +89,17 @@ module Make () : S = struct
 
     let ema n s =
       let alpha = 2. /. float_of_int (n + 1) in
-      (* recurse once the recursion has a value; until then fall back to
-         the sma seed — [default] keeps selecting the seed while the body
-         is None, so the seed's own warmup takes as long as it takes *)
-      loop ~init:[||] (fun prev_ema ->
-        default ((s *~. alpha) +~ (prev_ema *~. (1.0 -. alpha))) (sma n s))
+      recurrence (fun prev_ema ->
+        cond
+          (is_pending prev_ema)
+          (sma n s)
+          ((s *~. alpha) +~ (prev_ema *~. (1.0 -. alpha))))
     ;;
 
     let crossover a b = pre a <~ pre b &&~ (a >~ b)
     let crossunder a b = pre a >~ pre b &&~ (a <~ b)
     let highest n s = window n s |> List.fold_left max @@ const Float.neg_infinity
     let lowest n s = window n s |> List.fold_left min @@ const Float.infinity
-    let bars_since c = loop ~init:[||] (fun prev -> cond c (const 0.) (prev +~. 1.0))
+    let bars_since c = recurrence (fun prev -> cond c (const 0.) (prev +~. 1.0))
   end
 end
