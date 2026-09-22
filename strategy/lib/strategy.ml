@@ -82,7 +82,16 @@ module Make () : S = struct
   ;;
 
   module Indicator = struct
-    let sum n s = window n s |> List.fold_left ( +~ ) @@ const 0.
+    (* let sum n s = window n s |> List.fold_left ( +~ ) @@ const 0. *)
+    let sum n s =
+      let acc = recurrence (fun prev -> cond (is_pending prev) s (prev +~ s)) in
+      recurrence (fun prev ->
+        cond
+          (is_pending prev)
+          (cond (is_pending (delay (n - 1) s)) (undefined ()) acc)
+          (prev +~ s -~ delay n s))
+    ;;
+
     let sma n s = sum n s /~. Float.of_int n
     let min = Graph.min g
     let max = Graph.max g

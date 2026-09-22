@@ -126,6 +126,22 @@ let bars_since_series threshold xs =
 
 (* ------------------------------- scenarios ------------------------------- *)
 
+(* sma is built on [Indicator.sum]: exercise it directly, ahead of the ema
+   suites that depend on it for their seed. *)
+let () =
+  let xs = [| 1.; 2.; 3.; 4.; 5.; 6. |] in
+  let expected = sma_series 3 xs in
+  run "sma 3 inp" xs expected (fun m ->
+    let module M = (val m : Strategy_intf.S) in
+    let open M in
+    let inp = input () in
+    let probe = Indicator.sma 3 inp in
+    compile ();
+    { step_in = (fun x -> step [ Set (inp, x) ])
+    ; read = (fun () -> value_option (value probe))
+    })
+;;
+
 (* 1. Plain ema on an input: sma seed while the recursion is pending, then
    the recursion takes over. *)
 let () =
