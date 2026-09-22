@@ -99,4 +99,4 @@ let recurrence g (body : 'a Language.signal -> 'a Language.signal) : 'a Language
   make g (1 + result.rank) (Rec (knot, result))
 ;;
 
-let map g f a = make g (1 + a.rank) (Language.Map (f, a))
+let map g f a = make g (1 + a.rank) (Language.Fmap (f, a))

@@ -98,7 +98,7 @@ let compile (g : Graph.t) =
         (fun () ->
           s.prev <- s.cur;
           s.cur <- result.cur)
-    | Map (f, src) ->
+    | Fmap (f, src) ->
       Some
         (fun () ->
           s.prev <- s.cur;

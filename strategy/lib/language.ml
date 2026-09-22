@@ -57,7 +57,7 @@ and _ def =
   | Cond : bool signal * 'a signal * 'a signal -> 'a def
   | Knot : 'a def
   | Rec : 'a signal * 'a signal -> 'a def
-  | Map : ('a -> 'b) * 'a signal -> 'b def
+  | Fmap : ('a -> 'b) * 'a signal -> 'b def
 
 type signal_key =
   | KUnary : ('a, 'b) unary * int -> signal_key

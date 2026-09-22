@@ -63,7 +63,7 @@ let check_operands : type a. int -> a def -> unit =
   | Rec (knot, result) ->
     check knot;
     check result
-  | Map (_, src) -> check src
+  | Fmap (_, src) -> check src
 ;;
 
 let make t graph_id rank def =
