@@ -1,2 +1,5 @@
 local_data/
 *.txt
+
+# Local OPAM switch
+_opam/

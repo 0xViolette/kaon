@@ -29,6 +29,9 @@ let strat () =
   let qty3 = netequity /~ (se *~. bigpointvalue) in
   let con3 = floor qty3 in
   let con4 = const 2.0 in
+  let finalcon = min con1 (min con2 con3) in
+  let tradecon = max finalcon con4 in
+  long_entry (close >~ mov);
   [ "close", close
   ; "le", le
   ; "se", se
@@ -48,6 +51,8 @@ let strat () =
   ; "qty3", qty3
   ; "con3", con3
   ; "con4", con4
+  ; "finalcon", finalcon
+  ; "tradecon", tradecon
   ]
 ;;
 

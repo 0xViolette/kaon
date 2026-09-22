@@ -86,14 +86,29 @@ let next_bar ic buf =
 
 module Make () = struct
   module S' = Strategy.Make ()
+
+  let broker = Broker.create ()
+
   include S'
+
+  type side =
+    | Buy
+    | Sell
 
   let open_ : float signal = S'.input ()
   let high : float signal = S'.input ()
   let low : float signal = S'.input ()
   let close : float signal = S'.input ()
+  let market_position : float signal = S'.input ()
   let bar_index = tick
   let netprofit = const 0.0
+
+  let long_entry (cond : bool signal) : unit =
+    let _ =
+      map (fun x -> if x = true then Printf.printf "Buy\n" else Printf.printf "\n") cond
+    in
+    ()
+  ;;
 
   module Indicator = struct
     include S'.Indicator
@@ -122,6 +137,7 @@ module Make () = struct
           ; Set (high, bar.high)
           ; Set (low, bar.low)
           ; Set (close, bar.close)
+          ; Set (market_position, float_of_int (Broker.market_position broker))
           ];
         f ();
         loop (n + 1)
