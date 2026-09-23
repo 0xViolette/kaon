@@ -95,6 +95,12 @@ module Make () = struct
     | Buy
     | Sell
 
+  type order_kind =
+    | Market
+    | Limit of float signal
+    | Stop of float signal
+    | StopLimit of float signal * float signal
+
   let open_ : float signal = S'.input ()
   let high : float signal = S'.input ()
   let low : float signal = S'.input ()
@@ -103,20 +109,64 @@ module Make () = struct
   let bar_index = tick
   let netprofit = const 0.0
 
-  let long_entry (cond : bool signal) : unit =
-    let _ =
-      fmap
-        (fun x ->
-           match x with
-           | Some true ->
-             Printf.printf "Buy\n";
-             None
-           | _ ->
-             Printf.printf "\n";
-             None)
-        cond
-    in
-    ()
+  let entry side qty order_kind cond : unit =
+    match order_kind with
+    | Market ->
+      let _ =
+        lift2
+          (fun cond qty ->
+             match cond, qty with
+             | Some true, Some qty ->
+               Broker.place_order broker side Market qty;
+               None
+             | _ -> None)
+          cond
+          qty
+      in
+      ()
+    | Limit limit ->
+      let _ =
+        lift3
+          (fun cond qty limit ->
+             match cond, qty, limit with
+             | Some true, Some qty, Some limit ->
+               Broker.place_order broker side (Limit limit) qty;
+               None
+             | _ -> None)
+          cond
+          qty
+          limit
+      in
+      ()
+    | Stop stop ->
+      let _ =
+        lift3
+          (fun cond qty stop ->
+             match cond, qty, stop with
+             | Some true, Some qty, Some stop ->
+               Broker.place_order broker side (Stop stop) qty;
+               None
+             | _ -> None)
+          cond
+          qty
+          stop
+      in
+      ()
+    | StopLimit (stop, limit) ->
+      let _ =
+        lift4
+          (fun cond qty stop limit ->
+             match cond, qty, stop, limit with
+             | Some true, Some qty, Some stop, Some limit ->
+               Broker.place_order broker side (StopLimit { stop; limit }) qty;
+               None
+             | _ -> None)
+          cond
+          qty
+          stop
+          limit
+      in
+      ()
   ;;
 
   module Indicator = struct
@@ -134,23 +184,42 @@ module Make () = struct
     ;;
   end
 
+  (* let backtest (f : unit -> unit) = *)
+  (*   Utils.refuse_tty (); *)
+  (*   let ic = In_channel.stdin in *)
+  (*   let buf = Bytes.create message_size in *)
+  (*   let rec loop n = *)
+  (*     match next_bar ic buf with *)
+  (*     | Some bar -> *)
+  (*       step *)
+  (*         [ Set (open_, bar.open_) *)
+  (*         ; Set (high, bar.high) *)
+  (*         ; Set (low, bar.low) *)
+  (*         ; Set (close, bar.close) *)
+  (*         ; Set (market_position, float_of_int (Broker.market_position broker)) *)
+  (*         ]; *)
+  (*       f (); *)
+  (*       loop (n + 1) *)
+  (*     | None -> prerr_endline "End of Stream" *)
+  (*   in *)
+  (*   loop 1 *)
+
   let backtest (f : unit -> unit) =
-    Utils.refuse_tty ();
-    let ic = In_channel.stdin in
-    let buf = Bytes.create message_size in
     let rec loop n =
-      match next_bar ic buf with
-      | Some bar ->
+      match Broker.step broker with
+      | true ->
         step
-          [ Set (open_, bar.open_)
-          ; Set (high, bar.high)
-          ; Set (low, bar.low)
-          ; Set (close, bar.close)
+          [ Set (open_, broker.open_)
+          ; Set (high, broker.high)
+          ; Set (low, broker.low)
+          ; Set (close, broker.close)
           ; Set (market_position, float_of_int (Broker.market_position broker))
           ];
         f ();
         loop (n + 1)
-      | None -> prerr_endline "End of Stream"
+      | false ->
+        prerr_endline "End of stream";
+        flush_all ()
     in
     loop 1
   ;;

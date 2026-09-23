@@ -31,7 +31,8 @@ let strat () =
   let con4 = const 2.0 in
   let finalcon = min con1 (min con2 con3) in
   let tradecon = max finalcon con4 in
-  long_entry (close >~ mov);
+  entry Buy tradecon (Stop le) (close >~ mov);
+  entry Sell tradecon (Stop se) (close <~ mov);
   [ "close", close
   ; "le", le
   ; "se", se
@@ -61,9 +62,7 @@ let signals = strat ()
 let () =
   let start_time = Sys.time () in
   Papa.compile ();
-  Papa.backtest (fun () ->
-    (* Force evaluations if Papa.value is lazy, without printing *)
-    List.iter (fun (_, s) -> ignore (Papa.value s)) signals);
+  Papa.backtest (fun () -> ());
   let end_time = Sys.time () in
   Printf.printf "Execution time: %.4f seconds\n" (end_time -. start_time)
 ;;

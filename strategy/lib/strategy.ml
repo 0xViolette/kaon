@@ -83,6 +83,16 @@ module Make () : S = struct
       c
   ;;
 
+  let lift4 f a b c d =
+    lift2
+      (fun abc d ->
+         match abc with
+         | Some f -> f d
+         | None -> None)
+      (lift3 (fun a b c -> Some (fun d -> f a b c d)) a b c)
+      d
+  ;;
+
   let cond c t e =
     lift3
       (fun c t e ->
