@@ -84,7 +84,6 @@ let rec window g length node =
   if length = 0 then [] else node :: window g (length - 1) (pre g node)
 ;;
 
-let cond g p t e = make g (1 + (Int.max p.rank @@ Int.max t.rank e.rank)) (Cond (p, t, e))
 let is_pending g s = make g (1 + s.rank) (IsPending s)
 
 (* [loop ~init body]: on bar i < length(init) the loop copies init.(i)
@@ -99,4 +98,5 @@ let recurrence g (body : 'a Language.signal -> 'a Language.signal) : 'a Language
   make g (1 + result.rank) (Rec (knot, result))
 ;;
 
-let map g f a = make g (1 + a.rank) (Language.Fmap (f, a))
+let fmap g f a = make g (1 + a.rank) (Language.Fmap (f, a))
+let lift2 g f a b = make g (1 + Int.max a.rank b.rank) (Language.Lift2 (f, a, b))

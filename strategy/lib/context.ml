@@ -56,14 +56,13 @@ let check_operands : type a. int -> a def -> unit =
   | Binary (_, l, r) ->
     check l;
     check r
-  | Cond (pred, t, e) ->
-    check pred;
-    check t;
-    check e
   | Rec (knot, result) ->
     check knot;
     check result
   | Fmap (_, src) -> check src
+  | Lift2 (_, a, b) ->
+    check a;
+    check b
 ;;
 
 let make t graph_id rank def =

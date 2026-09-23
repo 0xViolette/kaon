@@ -165,7 +165,7 @@ let () =
        let module M = (val m : Strategy_intf.S) in
        let open M in
        let inp = input () in
-       let probe = map (fun x -> x *. 10.) inp in
+       let probe = fmap (Option.map (fun x -> x *. 10.)) inp in
        compile ();
        { step_in = (fun x -> step [ Set (inp, x) ])
        ; read = (fun () -> value_option (value probe))
@@ -184,7 +184,7 @@ let () =
        let module M = (val m : Strategy_intf.S) in
        let open M in
        let inp = input () in
-       let probe = map (fun x -> x +. 1.) (pre inp) in
+       let probe = fmap (Option.map (fun x -> x +. 1.)) (pre inp) in
        compile ();
        { step_in = (fun x -> step [ Set (inp, x) ])
        ; read = (fun () -> value_option (value probe))

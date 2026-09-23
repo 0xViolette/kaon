@@ -40,7 +40,8 @@ module type S = sig
   val floor : float signal -> float signal
   val ceil : float signal -> float signal
   val is_pending : float signal -> bool signal
-  val map : ('a -> 'b) -> 'a signal -> 'b signal
+  val fmap : ('a option -> 'b option) -> 'a signal -> 'b signal
+  val lift2 : ('a option -> 'b option -> 'c option) -> 'a signal -> 'b signal -> 'c signal
 
   module Indicator : sig
     val max : float signal -> float signal -> float signal

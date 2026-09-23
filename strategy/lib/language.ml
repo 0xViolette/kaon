@@ -54,10 +54,10 @@ and _ def =
   | Pre : 'a signal -> 'a def
   | Unary : ('a, 'b) unary * 'a signal -> 'b def
   | Binary : ('a, 'b, 'c) binary * 'a signal * 'b signal -> 'c def
-  | Cond : bool signal * 'a signal * 'a signal -> 'a def
   | Knot : 'a def
   | Rec : 'a signal * 'a signal -> 'a def
-  | Fmap : ('a -> 'b) * 'a signal -> 'b def
+  | Fmap : ('a option -> 'b option) * 'a signal -> 'b def
+  | Lift2 : ('a option -> 'b option -> 'c option) * 'a signal * 'b signal -> 'c def
 
 type signal_key =
   | KUnary : ('a, 'b) unary * int -> signal_key

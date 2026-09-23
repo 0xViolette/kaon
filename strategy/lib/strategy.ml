@@ -50,7 +50,6 @@ module Make () : S = struct
   let le = Graph.le g
   let gt = Graph.gt g
   let ge = Graph.ge g
-  let cond i t e = Graph.cond g i t e
   let ( +~ ) = add
   let ( +~. ) = add_const_r
   let ( +.~ ) = add_const_l
@@ -71,7 +70,30 @@ module Make () : S = struct
   let ( ||~ ) = Graph.or_ g
   let ( !=~ ) a b = Graph.neq g a b
   let ( =~ ) a b = Graph.eq g a b
-  let map f a = Graph.map g f a
+  let fmap f a = Graph.fmap g f a
+  let lift2 f a b = Graph.lift2 g f a b
+
+  let lift3 f a b c =
+    lift2
+      (fun ab c ->
+         match ab with
+         | Some f -> f c
+         | None -> None)
+      (lift2 (fun a b -> Some (fun c -> f a b c)) a b)
+      c
+  ;;
+
+  let cond c t e =
+    lift3
+      (fun c t e ->
+         match c with
+         | Some true -> t
+         | Some false -> e
+         | None -> None)
+      c
+      t
+      e
+  ;;
 
   let compile () =
     match !r with

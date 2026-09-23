@@ -105,7 +105,16 @@ module Make () = struct
 
   let long_entry (cond : bool signal) : unit =
     let _ =
-      map (fun x -> if x = true then Printf.printf "Buy\n" else Printf.printf "\n") cond
+      fmap
+        (fun x ->
+           match x with
+           | Some true ->
+             Printf.printf "Buy\n";
+             None
+           | _ ->
+             Printf.printf "\n";
+             None)
+        cond
     in
     ()
   ;;
