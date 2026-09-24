@@ -47,9 +47,17 @@ module Make () : S = struct
   let div_const_r s x = Graph.div g s (const x)
   let div_const_l x s = Graph.div g s (const x)
   let lt = Graph.lt g
+  let lt_const_r s x = Graph.lt g s (const x)
+  let lt_const_l x s = Graph.lt g s (const x)
   let le = Graph.le g
+  let le_const_r s x = Graph.le g s (const x)
+  let le_const_l x s = Graph.le g s (const x)
   let gt = Graph.gt g
+  let gt_const_r s x = Graph.gt g s (const x)
+  let gt_const_l x s = Graph.gt g s (const x)
   let ge = Graph.ge g
+  let ge_const_r s x = Graph.ge g s (const x)
+  let ge_const_l x s = Graph.ge g s (const x)
   let ( +~ ) = add
   let ( +~. ) = add_const_r
   let ( +.~ ) = add_const_l
@@ -63,9 +71,17 @@ module Make () : S = struct
   let ( /~. ) = div_const_r
   let ( /.~ ) = div_const_l
   let ( <~ ) = lt
+  let ( <~. ) = lt_const_r
+  let ( <.~ ) = lt_const_l
   let ( <=~ ) = le
+  let ( <=~. ) = le_const_r
+  let ( <=.~ ) = le_const_l
   let ( >~ ) = gt
+  let ( >~. ) = gt_const_r
+  let ( >.~ ) = gt_const_l
   let ( >=~ ) = ge
+  let ( >=~. ) = ge_const_r
+  let ( >=.~ ) = ge_const_l
   let ( &&~ ) = Graph.and_ g
   let ( ||~ ) = Graph.or_ g
   let ( !=~ ) a b = Graph.neq g a b

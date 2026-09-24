@@ -6,7 +6,6 @@ let strat () =
   let bigpointvalue = 50.0 in
   let echannel = 10 in
   let risk = 0.01 in
-  let equity = 3000000. in
   let leverage = 2.0 in
   let atrgunak = 2. in
   let ma = 65 in
@@ -16,12 +15,12 @@ let strat () =
   let atr1 = Indicator.sma atrbars Indicator.tr in
   let atr = Indicator.ema 20 atr1 in
   let mov = Indicator.ema ma close in
-  let movbuy = mov *~. 1.001 in
-  let movsell = mov *~. 0.999 in
-  let pbl = se *~. 1.035 in
-  let pbs = le *~. 0.965 in
-  let netequity = (equity +.~ netprofit) *~. leverage in
-  let netequity1 = (equity *. leverage) +.~ netprofit in
+  (* let movbuy = mov *~. 1.001 in *)
+  (* let movsell = mov *~. 0.999 in *)
+  (* let pbl = se *~. 1.035 in *)
+  (* let pbs = le *~. 0.965 in *)
+  let netequity = (initial_balance +~ net_pnl) *~. leverage in
+  (* let netequity1 = (initial_balance *~. leverage) +~ net_pnl in *)
   let qty1 = netequity *~. risk /~ (atrgunak *.~ atr *~. bigpointvalue) in
   let con1 = floor qty1 in
   let qty2 = netequity /~ (le *~. bigpointvalue) in
@@ -29,32 +28,20 @@ let strat () =
   let qty3 = netequity /~ (se *~. bigpointvalue) in
   let con3 = floor qty3 in
   let con4 = const 2.0 in
-  let finalcon = min con1 (min con2 con3) in
-  let tradecon = max finalcon con4 in
-  entry Buy tradecon (Stop le) (close >~ mov);
-  entry Sell tradecon (Stop se) (close <~ mov);
-  [ "close", close
-  ; "le", le
-  ; "se", se
-  ; "atr1", atr1
-  ; "atr", atr
-  ; "mov", mov
-  ; "movbuy", movbuy
-  ; "movsell", movsell
-  ; "pbl", pbl
-  ; "pbs", pbs
-  ; "netequity", netequity
-  ; "netequity1", netequity1
-  ; "qty1", qty1
-  ; "con1", con1
-  ; "qty2", qty2
-  ; "con2", con2
-  ; "qty3", qty3
-  ; "con3", con3
-  ; "con4", con4
-  ; "finalcon", finalcon
-  ; "tradecon", tradecon
-  ]
+  let finalcon = Indicator.min con1 (Indicator.min con2 con3) in
+  let tradecon = Indicator.max finalcon con4 in
+  entry
+    "LE"
+    Buy
+    (tradecon +~ abs net_qty)
+    (Stop le)
+    (close >~ mov &&~ (market_position <~. 1.0));
+  entry
+    "SE"
+    Sell
+    (tradecon +~ abs net_qty)
+    (Stop se)
+    (close <~ mov &&~ (market_position >~. -1.0))
 ;;
 
 let signals = strat ()

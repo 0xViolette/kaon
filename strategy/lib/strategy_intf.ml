@@ -29,6 +29,14 @@ module type S = sig
   val ( <=~ ) : float signal -> float signal -> bool signal
   val ( >~ ) : float signal -> float signal -> bool signal
   val ( >=~ ) : float signal -> float signal -> bool signal
+  val ( <~. ) : float signal -> float -> bool signal
+  val ( <=~. ) : float signal -> float -> bool signal
+  val ( >~. ) : float signal -> float -> bool signal
+  val ( >=~. ) : float signal -> float -> bool signal
+  val ( <.~ ) : float -> float signal -> bool signal
+  val ( <=.~ ) : float -> float signal -> bool signal
+  val ( >.~ ) : float -> float signal -> bool signal
+  val ( >=.~ ) : float -> float signal -> bool signal
   val ( &&~ ) : bool signal -> bool signal -> bool signal
   val ( ||~ ) : bool signal -> bool signal -> bool signal
   val ( =~ ) : 'a signal -> 'a signal -> bool signal
