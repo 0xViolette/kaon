@@ -18,6 +18,8 @@ let cast_unary : type a b. (a, b) unary -> any_signal -> b signal option =
   | Abs, Unary (Abs, _) -> Some s
   | Sqrt, Unary (Sqrt, _) -> Some s
   | Not, Unary (Not, _) -> Some s
+  | Floor, Unary (Floor, _) -> Some s
+  | Ceil, Unary (Ceil, _) -> Some s
   | _ -> None
 ;;
 

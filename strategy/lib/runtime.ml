@@ -130,11 +130,14 @@ let step r setters =
       (fun id -> not (List.exists (fun (Set (s, _)) -> s.id = id) setters))
       r.input_ids
   then failwith "step: all inputs must be set";
-  List.iter
-    (fun (Set (s, v)) ->
-       s.prev <- s.cur;
-       s.cur <- Some v)
-    setters;
+  if Array.length r.input_ids <> List.length setters
+  then failwith "step: an input is set more than once"
+  else
+    List.iter
+      (fun (Set (s, v)) ->
+         s.prev <- s.cur;
+         s.cur <- Some v)
+      setters;
   Array.iter (fun f -> f ()) r.steps
 ;;
 

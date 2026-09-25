@@ -169,12 +169,32 @@ let process_orders t =
     | Market -> fill t.open_
     | Limit price ->
       (match o.side with
-       | Buy -> if t.low <= price then fill price else false
-       | Sell -> if t.high >= price then fill price else false)
+       | Buy ->
+         if t.open_ <= price
+         then fill t.open_
+         else if t.low <= price
+         then fill price
+         else false
+       | Sell ->
+         if t.open_ >= price
+         then fill t.open_
+         else if t.high >= price
+         then fill price
+         else false)
     | Stop price ->
       (match o.side with
-       | Buy -> if t.high >= price then fill price else false
-       | Sell -> if t.low <= price then fill price else false)
+       | Buy ->
+         if t.open_ >= price
+         then fill t.open_
+         else if t.high >= price
+         then fill price
+         else false
+       | Sell ->
+         if t.open_ <= price
+         then fill t.open_
+         else if t.low <= price
+         then fill price
+         else false)
   in
   let rec loop (cur_node : order DList.node option) =
     match cur_node with

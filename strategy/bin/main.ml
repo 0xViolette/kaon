@@ -3,7 +3,6 @@ module Papa = Ohlc.Make ()
 
 let strat () =
   let open Papa in
-  let bigpointvalue = 50.0 in
   let echannel = 10 in
   let risk = 0.01 in
   let leverage = 2.0 in
@@ -21,11 +20,11 @@ let strat () =
   (* let pbs = le *~. 0.965 in *)
   let netequity = (initial_balance +~ net_pnl) *~. leverage in
   (* let netequity1 = (initial_balance *~. leverage) +~ net_pnl in *)
-  let qty1 = netequity *~. risk /~ (atrgunak *.~ atr *~. bigpointvalue) in
+  let qty1 = netequity *~. risk /~ (atrgunak *.~ atr *~. lot_size) in
   let con1 = floor qty1 in
-  let qty2 = netequity /~ (le *~. bigpointvalue) in
+  let qty2 = netequity /~ (le *~. lot_size) in
   let con2 = floor qty2 in
-  let qty3 = netequity /~ (se *~. bigpointvalue) in
+  let qty3 = netequity /~ (se *~. lot_size) in
   let con3 = floor qty3 in
   let con4 = const 2.0 in
   let finalcon = Indicator.min con1 (Indicator.min con2 con3) in
