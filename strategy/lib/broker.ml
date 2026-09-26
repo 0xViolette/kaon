@@ -1,3 +1,21 @@
+(* OHLC protocol
+- Encoding: binary
+- Byte order: little-endian
+- Message size: 40 bytes
+- Floating-point representation: IEEE 754 binary64 (`float64`)
+
+
++--------+------+---------+-----------+
+| Offset | Size | Type    | Field     |
++--------+------+---------+-----------+
+| 0      | 8    | uint64  | timestamp |
+| 8      | 8    | float64 | open      |
+| 16     | 8    | float64 | high      |
+| 24     | 8    | float64 | low       |
+| 32     | 8    | float64 | close     |
++--------+------+---------+-----------+
+*)
+
 let message_size = 40
 
 type bar_tick =
