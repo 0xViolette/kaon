@@ -25,6 +25,11 @@ module Make () = struct
   let lot_size = broker.lot_size
   let bar_index = tick
 
+  module Position = struct
+    let entry_price = fmap (fun _ -> Broker.entry_price broker) (undefined ())
+    let avg_entry_price = fmap (fun _ -> Broker.average_entry_price broker) (undefined ())
+  end
+
   let entry id side qty order_kind cond : unit =
     match order_kind with
     | Market ->

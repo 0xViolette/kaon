@@ -264,6 +264,24 @@ let place_order b id side kind qty =
     DList.append b.orders new_order
 ;;
 
+let entry_price b =
+  match b.positions.head with
+  | Some node -> Some node.value.qty
+  | None -> None
+;;
+
+let average_entry_price b =
+  if b.positions.head = None
+  then None
+  else (
+    let rec loop (cur_node : position DList.node option) (acc : float) =
+      match cur_node with
+      | Some node -> loop node.next (acc +. (node.value.price *. node.value.qty))
+      | None -> acc
+    in
+    Some (loop b.positions.head 0. /. b.net_qty))
+;;
+
 let step (b : t) =
   match next_bar b.ic b.buf with
   | Some bar ->
