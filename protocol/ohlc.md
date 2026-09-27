@@ -14,7 +14,7 @@ Messages are transmitted as a raw byte stream over stdin/stdout.
 
 - Encoding: binary
 - Byte order: little-endian
-- Message size: 48 bytes
+- Message size: 40 bytes
 - Floating-point representation: IEEE 754 binary64 (`float64`)
 
 
