@@ -84,7 +84,7 @@ module Make () : S = struct
   let ( >=.~ ) = ge_const_l
   let ( &&~ ) = Graph.and_ g
   let ( ||~ ) = Graph.or_ g
-  let ( !=~ ) a b = Graph.neq g a b
+  let ( <>~ ) a b = Graph.neq g a b
   let ( =~ ) a b = Graph.eq g a b
   let fmap f a = Graph.fmap g f a
   let lift2 f a b = Graph.lift2 g f a b
@@ -120,6 +120,8 @@ module Make () : S = struct
       t
       e
   ;;
+
+  let value_when event signal = recurrence (fun prev -> cond event signal prev)
 
   let compile () =
     match !r with

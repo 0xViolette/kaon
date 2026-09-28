@@ -235,6 +235,26 @@ let () =
        })
 ;;
 
+(* 11. value_when latches the input from the last bar where the condition
+       held. *)
+let () =
+  run
+    "Scenario 11: value_when latch"
+    pp_raw_float
+    pp_float
+    [| 1.; 1.; 9.; 1.; 1.; 8.; 1. |]
+    [| None; None; Some 9.; Some 9.; Some 9.; Some 8.; Some 8. |]
+    (fun m ->
+       let module M = (val m : Strategy_intf.S) in
+       let open M in
+       let inp = input () in
+       let probe = value_when (inp >~ const 5.) inp in
+       compile ();
+       { step_in = (fun x -> step [ Set (inp, x) ])
+       ; read = (fun () -> value_option (value probe))
+       })
+;;
+
 let () =
   if !failures = 0
   then print_endline "All scenarios passed."

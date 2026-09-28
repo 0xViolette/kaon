@@ -266,7 +266,7 @@ let place_order b id side kind qty =
 
 let entry_price b =
   match b.positions.head with
-  | Some node -> Some node.value.qty
+  | Some node -> Some node.value.price
   | None -> None
 ;;
 

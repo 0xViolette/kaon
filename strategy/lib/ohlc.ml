@@ -30,7 +30,7 @@ module Make () = struct
     let avg_entry_price = fmap (fun _ -> Broker.average_entry_price broker) (undefined ())
   end
 
-  let entry id side qty order_kind cond : unit =
+  let place_order id side qty order_kind cond : unit =
     match order_kind with
     | Market ->
       let _ =

@@ -40,8 +40,9 @@ module type S = sig
   val ( &&~ ) : bool signal -> bool signal -> bool signal
   val ( ||~ ) : bool signal -> bool signal -> bool signal
   val ( =~ ) : 'a signal -> 'a signal -> bool signal
-  val ( !=~ ) : 'a signal -> 'a signal -> bool signal
+  val ( <>~ ) : 'a signal -> 'a signal -> bool signal
   val cond : bool signal -> 'a signal -> 'a signal -> 'a signal
+  val value_when : bool signal -> 'a signal -> 'a signal
   val abs : float signal -> float signal
   val not : bool signal -> bool signal
   val sqrt : float signal -> float signal
