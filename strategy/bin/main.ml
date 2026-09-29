@@ -13,6 +13,7 @@ let strat () =
   let se = Indicator.lowest echannel low -~. 0.05 in
   let entered_long = market_position >~. 0. &&~ (pre market_position <=~. 0.) in
   let entered_short = market_position <~. 0. &&~ (pre market_position >=~. 0.) in
+  let entered_trade = entered_long ||~ entered_short in
   let atr1 = Indicator.sma atrbars Indicator.tr in
   let atr = Indicator.ema 20 atr1 in
   let mov = Indicator.ema ma close in
@@ -27,34 +28,17 @@ let strat () =
   let finalcon = Indicator.min con1 (Indicator.min con2 con3) in
   let tradecon = Indicator.max finalcon con4 in
   let atr_at_entry =
-    Indicator.min (const 50.0) (value_when (entered_long ||~ entered_short) atr)
+    cond
+      (Indicator.bars_since entered_trade <=~. 50.)
+      (value_when entered_trade atr)
+      (delay 50 atr)
   in
   let lx2n = Position.entry_price -~ (atrgunak *.~ atr_at_entry) in
   let sx2n = Position.entry_price +~ (atrgunak *.~ atr_at_entry) in
-  place_order
-    "LE"
-    Buy
-    (tradecon +~ abs net_qty)
-    (Stop le)
-    (close >~ mov &&~ (market_position <~. 1.0));
-  place_order
-    "LE stoploss"
-    Sell
-    (abs net_qty)
-    (Stop lx2n)
-    (Position.entry_price >~ se &&~ (market_position >~. 0.));
-  place_order
-    "SE"
-    Sell
-    (tradecon +~ abs net_qty)
-    (Stop se)
-    (close <~ mov &&~ (market_position >~. -1.0));
-  place_order
-    "SE stoploss"
-    Buy
-    (abs net_qty)
-    (Stop sx2n)
-    (Position.entry_price <~ le &&~ (market_position <~. 0.))
+  exit_long "2NL" (Stop lx2n) (Position.entry_price >~ se);
+  exit_short "2NS" (Stop sx2n) (Position.entry_price <~ le);
+  enter_long "LE" tradecon (Stop le) (close >~ mov);
+  enter_short "SE" tradecon (Stop se) (close <~ mov)
 ;;
 
 let signals = strat ()

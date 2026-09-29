@@ -129,6 +129,9 @@ type t =
   ; mutable low : float
   ; mutable close : float
   ; orders : order DList.t
+  ; (* invoked with the order id after each fill; lets the strategy layer
+       react to fills the way a live algo reacts to order updates *)
+    mutable on_fill : string -> unit
   }
 
 let is_zero x =
@@ -217,12 +220,21 @@ let process_orders t =
   let rec loop (cur_node : order DList.node option) =
     match cur_node with
     | Some node ->
-      if process_order node.value then DList.remove t.orders node;
-      loop node.next;
-      ()
+      if process_order node.value
+      then (
+        DList.remove t.orders node;
+        t.on_fill node.value.id;
+        (* on_fill may cancel or resize siblings, so restart from the head;
+           unfilled orders re-check to the same result *)
+        loop t.orders.head)
+      else loop node.next
     | None -> ()
   in
-  loop t.orders.head
+  loop t.orders.head;
+  (* one-bar duration, like EasyLanguage: an order that does not fill on the
+     bar it is active for is cancelled; the strategy re-issues it next bar *)
+  t.orders.head <- None;
+  t.orders.tail <- None
 ;;
 
 let create ?(initial_balance = 0.) () =
@@ -242,6 +254,7 @@ let create ?(initial_balance = 0.) () =
   ; low = nan
   ; close = nan
   ; orders = DList.create ()
+  ; on_fill = (fun _ -> ())
   }
 ;;
 
@@ -256,12 +269,38 @@ let place_order b id side kind qty =
     node.value.qty <- qty;
     node.value.kind <- kind
   | None ->
-    (match side with
-     | Buy -> Printf.printf "placed Buy order\n"
-     | Sell -> Printf.printf "placed Sell order\n");
-    flush_all ();
     let new_order = { id; side; kind; qty } in
     DList.append b.orders new_order
+;;
+
+let cancel_order b id =
+  let rec loop (cur_node : order DList.node option) =
+    match cur_node with
+    | Some node ->
+      if String.equal node.value.id id then DList.remove b.orders node else loop node.next
+    | None -> ()
+  in
+  loop b.orders.head
+;;
+
+(* like the modify endpoint of a real broker: adjust a resting order in
+   place, keeping its id and its position in the queue *)
+let modify_order b id ?kind ?qty () =
+  let rec loop (cur_node : order DList.node option) =
+    match cur_node with
+    | Some node ->
+      if String.equal node.value.id id
+      then (
+        (match kind with
+         | Some kind -> node.value.kind <- kind
+         | None -> ());
+        match qty with
+        | Some qty -> node.value.qty <- qty
+        | None -> ())
+      else loop node.next
+    | None -> ()
+  in
+  loop b.orders.head
 ;;
 
 let entry_price b =

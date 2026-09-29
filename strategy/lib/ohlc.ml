@@ -3,6 +3,34 @@ module Make () = struct
 
   let broker = Broker.create ~initial_balance:3000000. ()
 
+  (* Orders are declared as intents, not fixed quantities: an exit covers
+     whatever position is live when it fills, and an entry first covers the
+     opposite position and then establishes its target.  After each fill,
+     every pending order is re-aligned with the live position (the same
+     reconciliation TradeStation does internally), so sibling orders can
+     never double-fill the same contracts. *)
+  let exits : (string * bool) list ref = ref []
+  let entries : (string * bool * float ref) list ref = ref []
+
+  let () =
+    broker.on_fill
+    <- (fun _ ->
+         let net = broker.net_qty in
+         List.iter
+           (fun (id, exits_long) ->
+              if (exits_long && net <= 0.) || ((not exits_long) && net >= 0.)
+              then Broker.cancel_order broker id
+              else Broker.modify_order broker id ~qty:(Float.abs net) ())
+           !exits;
+         List.iter
+           (fun (id, is_buy, target) ->
+              let needed = if is_buy then !target -. net else !target +. net in
+              if needed <= 0.
+              then Broker.cancel_order broker id
+              else Broker.modify_order broker id ~qty:needed ())
+           !entries)
+  ;;
+
   include S'
 
   type side =
@@ -30,7 +58,7 @@ module Make () = struct
     let avg_entry_price = fmap (fun _ -> Broker.average_entry_price broker) (undefined ())
   end
 
-  let place_order id side qty order_kind cond : unit =
+  let place_order ?(on_place = ignore) id side qty order_kind cond : unit =
     match order_kind with
     | Market ->
       let _ =
@@ -39,6 +67,7 @@ module Make () = struct
              match cond, qty with
              | Some true, Some qty ->
                Broker.place_order broker id side Market qty;
+               on_place qty;
                None
              | _ -> None)
           cond
@@ -52,6 +81,7 @@ module Make () = struct
              match cond, qty, limit with
              | Some true, Some qty, Some limit ->
                Broker.place_order broker id side (Limit limit) qty;
+               on_place qty;
                None
              | _ -> None)
           cond
@@ -66,6 +96,7 @@ module Make () = struct
              match cond, qty, stop with
              | Some true, Some qty, Some stop ->
                Broker.place_order broker id side (Stop stop) qty;
+               on_place qty;
                None
              | _ -> None)
           cond
@@ -73,6 +104,43 @@ module Make () = struct
           stop
       in
       ()
+  ;;
+
+  (* order-management helpers over the dumb venue: an entry carries its
+     target position (plus whatever opposite position it must cover), an
+     exit covers the whole live position; quantities re-align on every fill *)
+  let enter_long id target kind cond =
+    let placed = ref 0. in
+    entries := (id, true, placed) :: !entries;
+    place_order
+      ~on_place:(fun qty -> placed := qty -. Float.max 0. (-.broker.net_qty))
+      id
+      Buy
+      (target +~ Indicator.max (const 0.) (const 0. -~ net_qty))
+      kind
+      (cond &&~ (market_position <~. 1.0))
+  ;;
+
+  let enter_short id target kind cond =
+    let placed = ref 0. in
+    entries := (id, false, placed) :: !entries;
+    place_order
+      ~on_place:(fun qty -> placed := qty -. Float.max 0. broker.net_qty)
+      id
+      Sell
+      (target +~ Indicator.max (const 0.) net_qty)
+      kind
+      (cond &&~ (market_position >~. -1.0))
+  ;;
+
+  let exit_long id kind cond =
+    exits := (id, true) :: !exits;
+    place_order id Sell (abs net_qty) kind (cond &&~ (market_position >~. 0.))
+  ;;
+
+  let exit_short id kind cond =
+    exits := (id, false) :: !exits;
+    place_order id Buy (abs net_qty) kind (cond &&~ (market_position <~. 0.))
   ;;
 
   module Indicator = struct
