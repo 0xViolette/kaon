@@ -13,34 +13,23 @@ module type S = sig
   val delay : int -> 'a signal -> 'a signal
   val window : int -> 'a signal -> 'a signal list
   val recurrence : ('a signal -> 'a signal) -> 'a signal
-  val ( +~ ) : float signal -> float signal -> float signal
-  val ( +~. ) : float signal -> float -> float signal
-  val ( +.~ ) : float -> float signal -> float signal
-  val ( *~ ) : float signal -> float signal -> float signal
-  val ( *~. ) : float signal -> float -> float signal
-  val ( *.~ ) : float -> float signal -> float signal
-  val ( -~ ) : float signal -> float signal -> float signal
-  val ( -~. ) : float signal -> float -> float signal
-  val ( -.~ ) : float -> float signal -> float signal
-  val ( /~ ) : float signal -> float signal -> float signal
-  val ( /~. ) : float signal -> float -> float signal
-  val ( /.~ ) : float -> float signal -> float signal
-  val ( <~ ) : float signal -> float signal -> bool signal
-  val ( <=~ ) : float signal -> float signal -> bool signal
-  val ( >~ ) : float signal -> float signal -> bool signal
-  val ( >=~ ) : float signal -> float signal -> bool signal
-  val ( <~. ) : float signal -> float -> bool signal
-  val ( <=~. ) : float signal -> float -> bool signal
-  val ( >~. ) : float signal -> float -> bool signal
-  val ( >=~. ) : float signal -> float -> bool signal
-  val ( <.~ ) : float -> float signal -> bool signal
-  val ( <=.~ ) : float -> float signal -> bool signal
-  val ( >.~ ) : float -> float signal -> bool signal
-  val ( >=.~ ) : float -> float signal -> bool signal
-  val ( &&~ ) : bool signal -> bool signal -> bool signal
-  val ( ||~ ) : bool signal -> bool signal -> bool signal
-  val ( =~ ) : 'a signal -> 'a signal -> bool signal
-  val ( <>~ ) : 'a signal -> 'a signal -> bool signal
+
+  module Ops : sig
+    val ( ! ) : 'a -> 'a signal
+    val ( + ) : float signal -> float signal -> float signal
+    val ( * ) : float signal -> float signal -> float signal
+    val ( - ) : float signal -> float signal -> float signal
+    val ( / ) : float signal -> float signal -> float signal
+    val ( < ) : float signal -> float signal -> bool signal
+    val ( <= ) : float signal -> float signal -> bool signal
+    val ( > ) : float signal -> float signal -> bool signal
+    val ( >= ) : float signal -> float signal -> bool signal
+    val ( && ) : bool signal -> bool signal -> bool signal
+    val ( || ) : bool signal -> bool signal -> bool signal
+    val ( = ) : 'a signal -> 'a signal -> bool signal
+    val ( <> ) : 'a signal -> 'a signal -> bool signal
+  end
+
   val cond : bool signal -> 'a signal -> 'a signal -> 'a signal
   val value_when : bool signal -> 'a signal -> 'a signal
   val abs : float signal -> float signal

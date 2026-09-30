@@ -3,50 +3,65 @@ module Papa = Ohlc.Make ()
 
 let strat () =
   let open Papa in
+  let open Papa.Ops in
   let echannel = 10 in
   let risk = 0.01 in
   let leverage = 2.0 in
   let atrgunak = 2. in
   let ma = 65 in
   let atrbars = 20 in
-  let le = Indicator.highest echannel high +~. 0.05 in
-  let se = Indicator.lowest echannel low -~. 0.05 in
-  let entered_long = market_position >~. 0. &&~ (pre market_position <=~. 0.) in
-  let entered_short = market_position <~. 0. &&~ (pre market_position >=~. 0.) in
-  let entered_trade = entered_long ||~ entered_short in
+  let le = Indicator.highest echannel high + !0.05 in
+  let se = Indicator.lowest echannel low - !0.05 in
+  let entered_long = Position.side > !0. && pre Position.side <= !0. in
+  let entered_short = Position.side < !0. && pre Position.side >= !0. in
+  let entered_trade = entered_long || entered_short in
   let atr1 = Indicator.sma atrbars Indicator.tr in
   let atr = Indicator.ema 20 atr1 in
   let mov = Indicator.ema ma close in
-  let netequity = (initial_balance +~ net_pnl) *~. leverage in
-  let qty1 = netequity *~. risk /~ (atrgunak *.~ atr *~. lot_size) in
+  let netequity = (Account.initial_balance + Account.net_pnl) * !leverage in
+  let qty1 = netequity * !risk / (!atrgunak * atr * !lot_size) in
   let con1 = floor qty1 in
-  let qty2 = netequity /~ (le *~. lot_size) in
+  let qty2 = netequity / (le * !lot_size) in
   let con2 = floor qty2 in
-  let qty3 = netequity /~ (se *~. lot_size) in
+  let qty3 = netequity / (se * !lot_size) in
   let con3 = floor qty3 in
   let con4 = const 2.0 in
   let finalcon = Indicator.min con1 (Indicator.min con2 con3) in
   let tradecon = Indicator.max finalcon con4 in
   let atr_at_entry =
     cond
-      (Indicator.bars_since entered_trade <=~. 50.)
+      (Indicator.bars_since entered_trade <= !50.)
       (value_when entered_trade atr)
       (delay 50 atr)
   in
-  let lx2n = Position.entry_price -~ (atrgunak *.~ atr_at_entry) in
-  let sx2n = Position.entry_price +~ (atrgunak *.~ atr_at_entry) in
-  exit_long "2NL" (Stop lx2n) (Position.entry_price >~ se);
-  exit_short "2NS" (Stop sx2n) (Position.entry_price <~ le);
-  enter_long "LE" tradecon (Stop le) (close >~ mov);
-  enter_short "SE" tradecon (Stop se) (close <~ mov)
+  let lx2n = Position.entry_price - (!atrgunak * atr_at_entry) in
+  let sx2n = Position.entry_price + (!atrgunak * atr_at_entry) in
+  let bullish = close > mov
+  and bearish = close < mov in
+  let stop_l = exit_long "2NL" (Stop lx2n) (Position.entry_price > se) in
+  let stop_s = exit_short "2NS" (Stop sx2n) (Position.entry_price < le) in
+  let cover_s = exit_short "LE cover" (Stop le) bullish in
+  let go_long = enter_long "LE" tradecon (Stop le) bullish in
+  let cover_l = exit_long "SE cover" (Stop se) bearish in
+  let go_short = enter_short "SE" tradecon (Stop se) bearish in
+  let orders = [ stop_l; stop_s; cover_s; go_long; cover_l; go_short ] in
+  let probes =
+    [ "atr1", atr1
+    ; "atr", atr
+    ; "mov", mov
+    ; "tradecon", tradecon
+    ; "atr_at_entry", atr_at_entry
+    ; "lx2n", lx2n
+    ; "sx2n", sx2n
+    ]
+  in
+  orders, probes
 ;;
 
-let signals = strat ()
-
 let () =
-  let start_time = Sys.time () in
-  Papa.compile ();
-  Papa.backtest (fun () -> ());
-  let end_time = Sys.time () in
-  Printf.printf "Execution time: %.4f seconds\n" (end_time -. start_time)
+  let t0 = Sys.time () in
+  let orders, probes = strat () in
+  Printf.printf "%s\n" (Report.csv_header (List.map fst probes));
+  Papa.backtest ~probes ~on_bar:(fun r -> Printf.printf "%s\n" (Report.csv_row r)) orders;
+  Printf.eprintf "Execution time: %.4f seconds\n" (Sys.time () -. t0)
 ;;
