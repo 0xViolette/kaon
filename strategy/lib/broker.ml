@@ -16,44 +16,15 @@
 +--------+------+---------+-----------+
 *)
 
-let message_size = 40
-
-type bar_tick =
-  { timestamp : int64
-  ; open_ : float
-  ; high : float
-  ; low : float
-  ; close : float
-  }
-
-let decode bytes : bar_tick =
-  let bytes_to_float offset = Int64.float_of_bits (Bytes.get_int64_le bytes offset) in
-  { timestamp = Bytes.get_int64_le bytes 0
-  ; open_ = bytes_to_float 8
-  ; high = bytes_to_float 16
-  ; low = bytes_to_float 24
-  ; close = bytes_to_float 32
-  }
-;;
-
-let really_read ic buf =
-  let len = Bytes.length buf in
-  let rec fill off =
-    if off = len
-    then `Ok
-    else (
-      match In_channel.input ic buf off (len - off) with
-      | 0 -> if off = 0 then `Eof else `Truncated off
-      | n -> fill (off + n))
-  in
-  fill 0
-;;
+open Collections
+module C = Codec.Ohlc
 
 let next_bar ic buf =
-  match really_read ic buf with
-  | `Ok -> Some (decode buf)
+  match Utils.read_exactly ic buf with
+  | `Ok -> Some (C.decode buf)
   | `Eof -> None
-  | `Truncated n -> Utils.die "truncated record: got %d bytes, expected %d" n message_size
+  | `Truncated (recieved, expected) ->
+    Utils.die "truncated record: recieved %d bytes, expected %d" recieved expected
 ;;
 
 type side =
@@ -77,42 +48,6 @@ type position =
   ; mutable qty : float
   }
 
-module DList = struct
-  type 'a node =
-    { value : 'a
-    ; mutable prev : 'a node option
-    ; mutable next : 'a node option
-    }
-
-  type 'a t =
-    { mutable head : 'a node option
-    ; mutable tail : 'a node option
-    }
-
-  let append t x =
-    let new_node = { value = x; prev = None; next = None } in
-    match t.tail with
-    | Some tail ->
-      new_node.prev <- Some tail;
-      tail.next <- Some new_node;
-      t.tail <- Some new_node
-    | None ->
-      t.head <- Some new_node;
-      t.tail <- Some new_node
-  ;;
-
-  let remove t node =
-    (match node.prev with
-     | Some prev -> prev.next <- node.next
-     | None -> t.head <- node.next);
-    match node.next with
-    | Some next -> next.prev <- node.prev
-    | None -> t.tail <- node.prev
-  ;;
-
-  let create () = { head = None; tail = None }
-end
-
 type t =
   { ic : in_channel
   ; buf : bytes
@@ -129,9 +64,9 @@ type t =
   ; mutable low : float
   ; mutable close : float
   ; orders : order DList.t
-  ; (* invoked with the order id after each fill; lets the strategy layer
-       react to fills the way a live algo reacts to order updates *)
-    mutable on_fill : string -> unit
+  ; (* invoked with the order id, fill price and qty after each fill; lets the
+       strategy layer react to fills the way a live algo reacts to order updates *)
+    mutable on_fill : string -> float -> float -> unit
   }
 
 let is_zero x =
@@ -162,7 +97,7 @@ let process_orders t =
         if not (is_zero p.qty) then loop node.next
       | None -> DList.append t.positions p
     in
-    loop t.positions.head
+    loop (DList.head t.positions)
   in
   let process_order (o : order) =
     let fill price =
@@ -180,11 +115,11 @@ let process_orders t =
        | x when x < 0. -> t.market_position <- -1
        | _ -> t.market_position <- 0);
       add_position new_position;
-      Printf.printf "balance: %f\n" t.balance;
-      Printf.printf "pnl: %f\n" t.net_pnl;
-      Printf.printf "market position: %d\n" t.market_position;
-      Printf.printf "position: %f\n\n" t.net_qty;
-      true
+      Printf.eprintf "balance: %f\n" t.balance;
+      Printf.eprintf "pnl: %f\n" t.net_pnl;
+      Printf.eprintf "market position: %d\n" t.market_position;
+      Printf.eprintf "position: %f\n\n" t.net_qty;
+      Some price
     in
     match o.kind with
     | Market -> fill t.open_
@@ -195,13 +130,13 @@ let process_orders t =
          then fill t.open_
          else if t.low <= price
          then fill price
-         else false
+         else None
        | Sell ->
          if t.open_ >= price
          then fill t.open_
          else if t.high >= price
          then fill price
-         else false)
+         else None)
     | Stop price ->
       (match o.side with
        | Buy ->
@@ -209,39 +144,38 @@ let process_orders t =
          then fill t.open_
          else if t.high >= price
          then fill price
-         else false
+         else None
        | Sell ->
          if t.open_ <= price
          then fill t.open_
          else if t.low <= price
          then fill price
-         else false)
+         else None)
   in
   let rec loop (cur_node : order DList.node option) =
     match cur_node with
     | Some node ->
-      if process_order node.value
-      then (
-        DList.remove t.orders node;
-        t.on_fill node.value.id;
-        (* on_fill may cancel or resize siblings, so restart from the head;
-           unfilled orders re-check to the same result *)
-        loop t.orders.head)
-      else loop node.next
+      (match process_order node.value with
+       | Some price ->
+         DList.remove t.orders node;
+         t.on_fill node.value.id price node.value.qty;
+         (* on_fill may cancel or resize siblings, so restart from the head;
+            unfilled orders re-check to the same result *)
+         loop (DList.head t.orders)
+       | None -> loop node.next)
     | None -> ()
   in
-  loop t.orders.head;
+  loop (DList.head t.orders);
   (* one-bar duration, like EasyLanguage: an order that does not fill on the
      bar it is active for is cancelled; the strategy re-issues it next bar *)
-  t.orders.head <- None;
-  t.orders.tail <- None
+  DList.clear t.orders
 ;;
 
 let create ?(initial_balance = 0.) () =
   Utils.refuse_tty ();
   { ic = In_channel.stdin
   ; lot_size = 50.
-  ; buf = Bytes.create message_size
+  ; buf = Bytes.create C.message_size
   ; initial_balance
   ; balance = initial_balance
   ; net_pnl = 0.
@@ -254,7 +188,7 @@ let create ?(initial_balance = 0.) () =
   ; low = nan
   ; close = nan
   ; orders = DList.create ()
-  ; on_fill = (fun _ -> ())
+  ; on_fill = (fun _ _ _ -> ())
   }
 ;;
 
@@ -264,7 +198,7 @@ let place_order b id side kind qty =
     | Some node -> if node.value.id = id then cur_node else loop node.next
     | None -> None
   in
-  match loop b.orders.head with
+  match loop (DList.head b.orders) with
   | Some node ->
     node.value.qty <- qty;
     node.value.kind <- kind
@@ -280,7 +214,7 @@ let cancel_order b id =
       if String.equal node.value.id id then DList.remove b.orders node else loop node.next
     | None -> ()
   in
-  loop b.orders.head
+  loop (DList.head b.orders)
 ;;
 
 (* like the modify endpoint of a real broker: adjust a resting order in
@@ -300,17 +234,17 @@ let modify_order b id ?kind ?qty () =
       else loop node.next
     | None -> ()
   in
-  loop b.orders.head
+  loop (DList.head b.orders)
 ;;
 
 let entry_price b =
-  match b.positions.head with
+  match DList.head b.positions with
   | Some node -> Some node.value.price
   | None -> None
 ;;
 
 let average_entry_price b =
-  if b.positions.head = None
+  if DList.head b.positions = None
   then None
   else (
     let rec loop (cur_node : position DList.node option) (acc : float) =
@@ -318,7 +252,7 @@ let average_entry_price b =
       | Some node -> loop node.next (acc +. (node.value.price *. node.value.qty))
       | None -> acc
     in
-    Some (loop b.positions.head 0. /. b.net_qty))
+    Some (loop (DList.head b.positions) 0. /. b.net_qty))
 ;;
 
 let step (b : t) =
