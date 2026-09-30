@@ -3,3 +3,5 @@ local_data/
 
 # Local OPAM switch
 _opam/
+
+.DS_Store
