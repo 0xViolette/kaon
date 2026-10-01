@@ -2,8 +2,10 @@
 type t =
   { bar : Codec.Ohlc.bar
   ; fills : Order.fill list
-  ; placed : Oms.desired list (* new this bar; continuing orders omitted *)
-  ; probes : (string * float option) list (* read after the graph stepped *)
+  ; placed :
+      Oms.desired list (* new this bar; continuing orders omitted *)
+  ; probes :
+      (string * float option) list (* read after the graph stepped *)
   }
 
 let num x = Printf.sprintf "%.10g" x
@@ -18,7 +20,11 @@ let cell = function
 let date_time ts =
   let tm = Unix.gmtime (Int64.to_float ts +. 19800.) in
   let date =
-    Printf.sprintf "%02d/%02d/%02d" (tm.tm_mon + 1) tm.tm_mday (tm.tm_year mod 100)
+    Printf.sprintf
+      "%02d/%02d/%02d"
+      (tm.tm_mon + 1)
+      tm.tm_mday
+      (tm.tm_year mod 100)
   in
   let h12 = tm.tm_hour mod 12 in
   let h12 = if h12 = 0 then 12 else h12 in
@@ -29,12 +35,15 @@ let date_time ts =
 let describe_placed (d : Oms.desired) =
   match d.kind with
   | Order.Market -> d.tag ^ " placed @ mkt"
-  | Order.Limit p | Order.Stop p -> Printf.sprintf "%s placed @ %s" d.tag (num p)
+  | Order.Limit p | Order.Stop p ->
+    Printf.sprintf "%s placed @ %s" d.tag (num p)
 ;;
 
 (* fills first, then new placements, same order as your old event column *)
 let events (r : t) =
-  let filled = List.map (fun (f : Order.fill) -> f.id ^ " filled") r.fills in
+  let filled =
+    List.map (fun (f : Order.fill) -> f.id ^ " filled") r.fills
+  in
   String.concat " | " (filled @ List.map describe_placed r.placed)
 ;;
 

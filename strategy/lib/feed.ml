@@ -8,7 +8,10 @@ let stdin_bars () : C.bar Seq.t =
     | `Ok -> Seq.Cons (C.decode buf, next)
     | `Eof -> Seq.Nil
     | `Truncated (recieved, expected) ->
-      Utils.die "truncated record: received %d bytes, expected %d" recieved expected
+      Utils.die
+        "truncated record: received %d bytes, expected %d"
+        recieved
+        expected
   in
   next
 ;;

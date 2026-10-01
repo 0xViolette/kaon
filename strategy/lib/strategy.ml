@@ -105,35 +105,32 @@ module Make () : S = struct
   ;;
 
   module Indicator = struct
-    open Ops
-
-    (* let sum n s = window n s |> List.fold_left ( +~ ) @@ const 0. *)
     let sum n s =
-      let acc = recurrence (fun prev -> cond (is_pending prev) s (prev + s)) in
+      let acc = recurrence (fun prev -> cond (is_pending prev) s Ops.(prev + s)) in
       recurrence (fun prev ->
         cond
           (is_pending prev)
-          (cond (is_pending (delay (Int.sub n 1) s)) (undefined ()) acc)
-          (prev + s - delay n s))
+          (cond (is_pending (delay (n - 1) s)) (undefined ()) acc)
+          Ops.(prev + s - delay n s))
     ;;
 
-    let sma n s = sum n s / !(Float.of_int n)
+    let sma n s = Ops.(sum n s / !(Float.of_int n))
     let min = Graph.min g
     let max = Graph.max g
 
     let ema n s =
-      let alpha = Float.div 2. (float_of_int (Int.add n 1)) in
+      let alpha = Float.div 2. (float_of_int (n + 1)) in
       recurrence (fun prev_ema ->
         cond
           (is_pending prev_ema)
           (sma n s)
-          ((s * !alpha) + (prev_ema * !(Float.sub 1.0 alpha))))
+          Ops.((s * !alpha) + (prev_ema * !(Float.sub 1.0 alpha))))
     ;;
 
-    let crossover a b = pre a < pre b && a > b
-    let crossunder a b = pre a > pre b && a < b
+    let crossover a b = Ops.(pre a < pre b && a > b)
+    let crossunder a b = Ops.(pre a > pre b && a < b)
     let highest n s = window n s |> List.fold_left max @@ const Float.neg_infinity
     let lowest n s = window n s |> List.fold_left min @@ const Float.infinity
-    let bars_since c = recurrence (fun prev -> cond c !0. (prev + !1.0))
+    let bars_since c = recurrence Ops.(fun prev -> cond c !0. (prev + !1.0))
   end
 end

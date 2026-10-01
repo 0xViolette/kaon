@@ -57,7 +57,9 @@ and _ def =
   | Knot : 'a def
   | Rec : 'a signal * 'a signal -> 'a def
   | Fmap : ('a option -> 'b option) * 'a signal -> 'b def
-  | Lift2 : ('a option -> 'b option -> 'c option) * 'a signal * 'b signal -> 'c def
+  | Lift2 :
+      ('a option -> 'b option -> 'c option) * 'a signal * 'b signal
+      -> 'c def
 
 type signal_key =
   | KUnary : ('a, 'b) unary * int -> signal_key

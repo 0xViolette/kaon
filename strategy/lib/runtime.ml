@@ -9,7 +9,9 @@ type t =
 let compile (g : Graph.t) =
   (* Array of all signals that are part of G *)
   let signals = Array.of_list g.ctx.registry in
-  Array.stable_sort (fun (Any l) (Any r) -> compare l.rank r.rank) signals;
+  Array.stable_sort
+    (fun (Any l) (Any r) -> compare l.rank r.rank)
+    signals;
   (* ids of all input signals *)
   let input_ids =
     Array.fold_left
@@ -62,7 +64,8 @@ let compile (g : Graph.t) =
           s.cur <- src.prev)
     | Knot ->
       (match s.knot_target with
-       | None -> failwith "compile: dangling knot (not created by loop)"
+       | None ->
+         failwith "compile: dangling knot (not created by loop)"
        | Some target ->
          Some
            (fun () ->
@@ -127,7 +130,8 @@ let step r setters =
     setters;
   if
     Array.exists
-      (fun id -> not (List.exists (fun (Set (s, _)) -> s.id = id) setters))
+      (fun id ->
+         not (List.exists (fun (Set (s, _)) -> s.id = id) setters))
       r.input_ids
   then failwith "step: all inputs must be set";
   if Array.length r.input_ids <> List.length setters
@@ -142,6 +146,7 @@ let step r setters =
 ;;
 
 let value r (s : 'a signal) : 'a option =
-  if s.graph_id <> r.graph_id then failwith "value: signal belongs to a different graph";
+  if s.graph_id <> r.graph_id
+  then failwith "value: signal belongs to a different graph";
   s.cur
 ;;

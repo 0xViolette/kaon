@@ -26,8 +26,14 @@ module Make () = struct
   module Position = struct
     let net_qty : float signal = S'.input ()
     let side : float signal = S'.input ()
-    let entry_price = fmap (fun _ -> Ledger.entry_price ledger) (undefined ())
-    let avg_entry_price = fmap (fun _ -> Ledger.avg_entry_price ledger) (undefined ())
+
+    let entry_price =
+      fmap (fun _ -> Ledger.entry_price ledger) (undefined ())
+    ;;
+
+    let avg_entry_price =
+      fmap (fun _ -> Ledger.avg_entry_price ledger) (undefined ())
+    ;;
   end
 
   module Indicator = struct
@@ -36,26 +42,31 @@ module Make () = struct
 
     let tr =
       let prev_close = pre close in
-      max (high - low) (max (abs (high - prev_close)) (abs (low - prev_close)))
+      max
+        (high - low)
+        (max (abs (high - prev_close)) (abs (low - prev_close)))
     ;;
 
     let atr n =
       let alpha = 1. /. float_of_int n in
       recurrence (fun p ->
-        cond (is_pending p) (sma n tr) ((tr * !alpha) + (p * !(1. -. alpha))))
+        cond
+          (is_pending p)
+          (sma n tr)
+          ((tr * !alpha) + (p * !(1. -. alpha))))
     ;;
   end
 
   let kind_signal = function
-    | Market -> const Order.Market
+    | Market -> Ops.(!Order.Market)
     | Limit p -> fmap (Option.map (fun p -> Order.Limit p)) p
     | Stop p -> fmap (Option.map (fun p -> Order.Stop p)) p
   ;;
 
   let order tag intent target kind when_ : Oms.desired signal =
     lift3
-      (fun c target k ->
-         match c, target, k with
+      (fun cond target kind ->
+         match cond, target, kind with
          | Some true, Some target, Some kind ->
            Some { Oms.tag; intent = intent target; kind }
          | _ -> None)
@@ -72,7 +83,9 @@ module Make () = struct
     order tag (fun t -> Oms.Go_short t) target kind when_
   ;;
 
-  let exit_long tag kind when_ = order tag (fun _ -> Oms.Close_long) (const 0.) kind when_
+  let exit_long tag kind when_ =
+    order tag (fun _ -> Oms.Close_long) (const 0.) kind when_
+  ;;
 
   let exit_short tag kind when_ =
     order tag (fun _ -> Oms.Close_short) (const 0.) kind when_
@@ -102,15 +115,19 @@ module Make () = struct
           ; Set (high, bar.high)
           ; Set (low, bar.low)
           ; Set (close, bar.close)
-          ; Set (Position.side, float_of_int (Ledger.side ledger))
-          ; Set (Position.net_qty, Ledger.net_qty ledger)
+          ; Set (Position.side, Ledger.side ledger)
+          ; Set (Position.net_qty, Ledger.net_lots ledger)
           ; Set (Account.initial_balance, ledger.initial_balance)
           ; Set (Account.net_pnl, ledger.realized)
           ];
-        let submitted = Oms.submit broker (List.filter_map value strategy) in
+        let submitted =
+          Oms.submit broker (List.filter_map value strategy)
+        in
         let is_new (d : Oms.desired) =
           Bool.not
-            (List.exists (fun (r : Oms.desired) -> String.equal r.tag d.tag) resting)
+            (List.exists
+               (fun (r : Oms.desired) -> String.equal r.tag d.tag)
+               resting)
         in
         on_bar
           { Report.bar

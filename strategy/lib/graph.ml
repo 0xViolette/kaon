@@ -12,7 +12,9 @@ let fresh_token =
     token
 ;;
 
-let create () = { ctx = Context.create (); compiled = false; id = fresh_token () }
+let create () =
+  { ctx = Context.create (); compiled = false; id = fresh_token () }
+;;
 
 open Language
 
@@ -81,7 +83,9 @@ let rec delay g n node =
 
 let rec window g length node =
   if length < 0 then invalid_arg "window: lookback cannot be negative";
-  if length = 0 then [] else node :: window g (length - 1) (pre g node)
+  if length = 0
+  then []
+  else node :: window g (length - 1) (pre g node)
 ;;
 
 let is_pending g s = make g (1 + s.rank) (IsPending s)
@@ -92,11 +96,16 @@ let is_pending g s = make g (1 + s.rank) (IsPending s)
    holds the loop's value from the previous bar. init = [||] starts the
    body on bar 0. A None handed to the recursion is usually permanent:
    seed with values that are valid at the bar they are consumed. *)
-let recurrence g (body : 'a Language.signal -> 'a Language.signal) : 'a Language.signal =
+let recurrence g (body : 'a Language.signal -> 'a Language.signal)
+  : 'a Language.signal
+  =
   let knot = make g 0 Knot in
   let result = body knot in
   make g (1 + result.rank) (Rec (knot, result))
 ;;
 
 let fmap g f a = make g (1 + a.rank) (Language.Fmap (f, a))
-let lift2 g f a b = make g (1 + Int.max a.rank b.rank) (Language.Lift2 (f, a, b))
+
+let lift2 g f a b =
+  make g (1 + Int.max a.rank b.rank) (Language.Lift2 (f, a, b))
+;;

@@ -6,12 +6,16 @@ type t =
   ; cache : (signal_key, any_signal) Hashtbl.t
   }
 
-let create () = { counter = 0; registry = []; cache = Hashtbl.create 16 }
+let create () =
+  { counter = 0; registry = []; cache = Hashtbl.create 16 }
+;;
 
 (* a cached signal is reused only when its own definition proves it has the
    requested type: matching the operator against the stored definition in a
    single branch forces both sides to agree on the result type *)
-let cast_unary : type a b. (a, b) unary -> any_signal -> b signal option =
+let cast_unary
+  : type a b. (a, b) unary -> any_signal -> b signal option
+  =
   fun op (Any s) ->
   match op, s.def with
   | Neg, Unary (Neg, _) -> Some s
@@ -23,7 +27,9 @@ let cast_unary : type a b. (a, b) unary -> any_signal -> b signal option =
   | _ -> None
 ;;
 
-let cast_binary : type a b c. (a, b, c) binary -> any_signal -> c signal option =
+let cast_binary
+  : type a b c. (a, b, c) binary -> any_signal -> c signal option
+  =
   fun op (Any s) ->
   match op, s.def with
   | Add, Binary (Add, _, _) -> Some s
@@ -48,7 +54,8 @@ let cast_binary : type a b c. (a, b, c) binary -> any_signal -> c signal option 
 let check_operands : type a. int -> a def -> unit =
   fun graph_id def ->
   let check s =
-    if s.graph_id <> graph_id then failwith "make: operand belongs to a different graph"
+    if s.graph_id <> graph_id
+    then failwith "make: operand belongs to a different graph"
   in
   match def with
   | Undefined | Const _ | Input | Knot | Tick -> ()

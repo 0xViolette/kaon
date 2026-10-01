@@ -39,7 +39,12 @@ module type S = sig
   val value_when : bool signal -> 'a signal -> 'a signal
   val is_pending : float signal -> bool signal
   val fmap : ('a option -> 'b option) -> 'a signal -> 'b signal
-  val lift2 : ('a option -> 'b option -> 'c option) -> 'a signal -> 'b signal -> 'c signal
+
+  val lift2
+    :  ('a option -> 'b option -> 'c option)
+    -> 'a signal
+    -> 'b signal
+    -> 'c signal
 
   val lift3
     :  ('a option -> 'b option -> 'c option -> 'd option)

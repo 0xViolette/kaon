@@ -10,7 +10,9 @@ module Ohlc = struct
     }
 
   let decode bytes : bar =
-    let bytes_to_float offset = Int64.float_of_bits (Bytes.get_int64_le bytes offset) in
+    let bytes_to_float offset =
+      Int64.float_of_bits (Bytes.get_int64_le bytes offset)
+    in
     { timestamp = Bytes.get_int64_le bytes 0
     ; open_ = bytes_to_float 8
     ; high = bytes_to_float 16
