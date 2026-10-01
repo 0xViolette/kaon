@@ -78,6 +78,9 @@ let modify t id ?kind ?qty () =
        t.orders
 ;;
 
+(* when the open gaps through several stops at once they all fill at the
+   open; sequence them by how far each level lies beyond the open along the
+   incoming path (the level hit first on the way down/up fills first) *)
 let trigger (b : C.bar) (o : order) =
   let high_first = b.high -. b.open_ <= b.open_ -. b.low in
   let dist p =
@@ -90,34 +93,43 @@ let trigger (b : C.bar) (o : order) =
     then b.open_ -. p
     else b.open_ -. b.low +. (p -. b.low)
   in
-  let at_open = Some (b.open_, 0.) in
+  let at_open gap = Some (b.open_, 0., gap) in
   let reached p =
-    if b.low <= p && p <= b.high then Some (p, dist p) else None
+    if b.low <= p && p <= b.high then Some (p, dist p, 0.) else None
   in
   match o.kind, o.side with
-  | Market, _ -> at_open
+  | Market, _ -> Some (b.open_, 0., 0.)
   | Limit p, Buy | Stop p, Sell ->
-    if b.open_ <= p then at_open else reached p
+    if b.open_ <= p then at_open (-.p) else reached p
   | Limit p, Sell | Stop p, Buy ->
-    if b.open_ >= p then at_open else reached p
+    if b.open_ >= p then at_open p else reached p
 ;;
 
 let next_fill t =
+  let net = net_qty t in
+  let blocked (o : order) =
+    match o.side with
+    | Buy -> net > 0.
+    | Sell -> net < 0.
+  in
   let candidates =
     List.filter_map
       (fun (o : order) ->
-         match trigger t.bar o with
-         | Some (price, time) when time >= t.clock ->
-           Some (time, o, price)
-         | _ -> None)
+         if blocked o
+         then None
+         else
+           (match trigger t.bar o with
+            | Some (price, time, gap) when time >= t.clock ->
+              Some (time, gap, o, price)
+            | _ -> None))
       t.orders
   in
-  let earlier (t1, (o1 : order), _) (t2, (o2 : order), _) =
-    compare (t1, o1.seq) (t2, o2.seq)
+  let earlier (t1, g1, (o1 : order), _) (t2, g2, (o2 : order), _) =
+    compare (t1, g1, o1.seq) (t2, g2, o2.seq)
   in
   match List.sort earlier candidates with
   | [] -> None
-  | (time, o, price) :: _ ->
+  | (time, _, o, price) :: _ ->
     t.clock <- time;
     cancel t o.id;
     let signed_qty =

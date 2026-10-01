@@ -21,8 +21,8 @@ let side_of = function
 let qty intent ~net =
   let s = Ledger.dir net in
   match intent with
-  | Go_long target -> if s > 0. then 0. else target -. net
-  | Go_short target -> if s < 0. then 0. else target +. net
+  | Go_long target -> if s > 0. then target else target -. net
+  | Go_short target -> if s < 0. then target else target +. net
   | Close_long -> if s > 0. then net else 0.
   | Close_short -> if s < 0. then -.net else 0.
 ;;
