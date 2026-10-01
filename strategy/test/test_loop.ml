@@ -183,8 +183,9 @@ let () =
   run "ema 3 (bars_since (inp > 5))" xs expected (fun m ->
     let module M = (val m : Strategy_intf.S) in
     let open M in
+    let open Ops in
     let inp = input () in
-    let probe = Indicator.(ema 3 (bars_since (inp >~ const 5.))) in
+    let probe = Indicator.(ema 3 (bars_since (inp > !5.))) in
     compile ();
     { step_in = (fun x -> step [ Set (inp, x) ])
     ; read = (fun () -> value_option (value probe))
@@ -214,8 +215,9 @@ let () =
   run "recurrence bootstrap const 0, body = prev + 1" xs expected (fun m ->
     let module M = (val m : Strategy_intf.S) in
     let open M in
+    let open Ops in
     let inp = input () in
-    let probe = recurrence (fun p -> cond (is_pending p) (const 0.) (p +~. 1.)) in
+    let probe = recurrence (fun p -> cond (is_pending p) !0. (p + !1.)) in
     compile ();
     { step_in = (fun x -> step [ Set (inp, x) ])
     ; read = (fun () -> value_option (value probe))
@@ -230,8 +232,9 @@ let () =
   run "unbootstrapped recurrence stays pending" xs expected (fun m ->
     let module M = (val m : Strategy_intf.S) in
     let open M in
+    let open Ops in
     let inp = input () in
-    let probe = recurrence (fun p -> p +~. 1.) in
+    let probe = recurrence (fun p -> p + !1.) in
     compile ();
     { step_in = (fun x -> step [ Set (inp, x) ])
     ; read = (fun () -> value_option (value probe))
@@ -246,8 +249,9 @@ let () =
   run "recurrence bootstrap from input" xs expected (fun m ->
     let module M = (val m : Strategy_intf.S) in
     let open M in
+    let open Ops in
     let inp = input () in
-    let probe = recurrence (fun p -> cond (is_pending p) inp (p +~. 1.)) in
+    let probe = recurrence (fun p -> cond (is_pending p) inp (p + !1.)) in
     compile ();
     { step_in = (fun x -> step [ Set (inp, x) ])
     ; read = (fun () -> value_option (value probe))
@@ -278,8 +282,9 @@ let () =
   run "latch: cond event value prev" xs expected (fun m ->
     let module M = (val m : Strategy_intf.S) in
     let open M in
+    let open Ops in
     let inp = input () in
-    let probe = recurrence (fun prev -> cond (inp >~ const 5.) inp prev) in
+    let probe = recurrence (fun prev -> cond (inp > !5.) inp prev) in
     compile ();
     { step_in = (fun x -> step [ Set (inp, x) ])
     ; read = (fun () -> value_option (value probe))
@@ -293,8 +298,9 @@ let () =
   run "cumulative sum recurrence" xs expected (fun m ->
     let module M = (val m : Strategy_intf.S) in
     let open M in
+    let open Ops in
     let inp = input () in
-    let probe = recurrence (fun prev -> cond (is_pending prev) inp (prev +~ inp)) in
+    let probe = recurrence (fun prev -> cond (is_pending prev) inp (prev + inp)) in
     compile ();
     { step_in = (fun x -> step [ Set (inp, x) ])
     ; read = (fun () -> value_option (value probe))

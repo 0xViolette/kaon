@@ -44,20 +44,21 @@ let value_option = function
 let build m ~fixed =
   let module M = (val m : Strategy_intf.S) in
   let open M in
+  let open M.Ops in
   let close = input () in
-  let shock = close >~ pre close *~. 1.05 in
-  let tr = abs (close -~ pre close) in
+  let shock = close > pre close * !1.05 in
+  let tr = abs (close - pre close) in
   let atr6 =
     recurrence (fun p ->
-      cond (is_pending p) (Indicator.sma 6 tr) ((tr *~. (1. /. 6.)) +~ (p *~. (5. /. 6.))))
+      cond (is_pending p) (Indicator.sma 6 tr) ((tr * !(1. /. 6.)) + (p * !(5. /. 6.))))
   in
-  let trail = close -~ (atr6 *~. 2.) in
+  let trail = close - (atr6 * !2.) in
   if fixed
   then (
     (* latch the fill price: on the shock bar take close, else keep prev *)
     let fill = recurrence (fun prev -> cond shock close prev) in
     (* entered = Some true from the first shock on *)
-    let entered = Indicator.bars_since shock >=~ const 0. in
+    let entered = Indicator.bars_since shock > !0. in
     (* trail the stop once in; [cond (is_pending prev) trail prev]
        bootstraps the ratchet from the trail itself until the stop has a
        value *)
@@ -65,7 +66,7 @@ let build m ~fixed =
       recurrence (fun prev ->
         cond entered (Indicator.max (cond (is_pending prev) trail prev) trail) prev)
     in
-    let exit = close <~ stop in
+    let exit = close < stop in
     compile ();
     fun c ->
       step [ Set (close, c) ];
@@ -75,7 +76,7 @@ let build m ~fixed =
        [max] and back into the knot — the stop never comes to life *)
     let fill = recurrence (fun prev -> cond shock close prev) in
     let stop = recurrence (fun prev -> Indicator.max prev trail) in
-    let exit = close <~ stop in
+    let exit = close < stop in
     compile ();
     fun c ->
       step [ Set (close, c) ];

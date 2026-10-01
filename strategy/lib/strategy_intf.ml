@@ -28,15 +28,15 @@ module type S = sig
     val ( || ) : bool signal -> bool signal -> bool signal
     val ( = ) : 'a signal -> 'a signal -> bool signal
     val ( <> ) : 'a signal -> 'a signal -> bool signal
+    val abs : float signal -> float signal
+    val not : bool signal -> bool signal
+    val sqrt : float signal -> float signal
+    val floor : float signal -> float signal
+    val ceil : float signal -> float signal
   end
 
   val cond : bool signal -> 'a signal -> 'a signal -> 'a signal
   val value_when : bool signal -> 'a signal -> 'a signal
-  val abs : float signal -> float signal
-  val not : bool signal -> bool signal
-  val sqrt : float signal -> float signal
-  val floor : float signal -> float signal
-  val ceil : float signal -> float signal
   val is_pending : float signal -> bool signal
   val fmap : ('a option -> 'b option) -> 'a signal -> 'b signal
   val lift2 : ('a option -> 'b option -> 'c option) -> 'a signal -> 'b signal -> 'c signal
@@ -67,4 +67,8 @@ module type S = sig
     val bars_since : bool signal -> float signal
     val crossunder : float signal -> float signal -> bool signal
   end
+end
+
+module type Strategy = sig
+  module Make : functor () -> S
 end

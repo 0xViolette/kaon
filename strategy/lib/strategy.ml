@@ -1,4 +1,4 @@
-module type S = Strategy_intf.S
+include Strategy_intf
 
 module Make () : S = struct
   type 'a signal = 'a Language.signal
@@ -28,11 +28,6 @@ module Make () : S = struct
   let window n x = Graph.window g n x
   let recurrence f = Graph.recurrence g f
   let neg = Graph.neg g
-  let abs = Graph.abs g
-  let sqrt = Graph.sqrt g
-  let not = Graph.not g
-  let floor = Graph.floor g
-  let ceil = Graph.ceil g
   let is_pending s = Graph.is_pending g s
   let add = Graph.add g
   let sub = Graph.sub g
@@ -57,6 +52,11 @@ module Make () : S = struct
     let ( || ) = Graph.or_ g
     let ( = ) a b = Graph.eq g a b
     let ( <> ) a b = Graph.neq g a b
+    let abs = Graph.abs g
+    let sqrt = Graph.sqrt g
+    let not = Graph.not g
+    let floor = Graph.floor g
+    let ceil = Graph.ceil g
   end
 
   let fmap f a = Graph.fmap g f a

@@ -54,8 +54,9 @@ let pp_raw_float = Printf.sprintf "%g"
 let bars_since_gt_5 m =
   let module M = (val m : Strategy_intf.S) in
   let open M in
+  let open M.Ops in
   let inp = input () in
-  let probe = Indicator.bars_since (inp >~ const 5.) in
+  let probe = Indicator.bars_since (inp > !5.) in
   compile ();
   { step_in = (fun x -> step [ Set (inp, x) ])
   ; read = (fun () -> value_option (value probe))
@@ -108,8 +109,9 @@ let () =
     (fun m ->
        let module M = (val m : Strategy_intf.S) in
        let open M in
+       let open M.Ops in
        let inp = input () in
-       let probe = Indicator.bars_since (pre inp >~ const 5.) in
+       let probe = Indicator.bars_since (pre inp > !5.) in
        compile ();
        { step_in = (fun x -> step [ Set (inp, x) ])
        ; read = (fun () -> value_option (value probe))
@@ -204,9 +206,10 @@ let () =
     (fun m ->
        let module M = (val m : Strategy_intf.S) in
        let open M in
+       let open M.Ops in
        let price = input () in
        let flag = input () in
-       let probe = cond flag (price +~. 1.) (price -~. 1.) in
+       let probe = cond flag (price + !1.) (price - !1.) in
        compile ();
        { step_in = (fun (f, b) -> step [ Set (price, f); Set (flag, b) ])
        ; read = (fun () -> value_option (value probe))
@@ -225,9 +228,10 @@ let () =
     (fun m ->
        let module M = (val m : Strategy_intf.S) in
        let open M in
+       let open M.Ops in
        let inp = input () in
        let counter =
-         recurrence (fun prev -> cond (is_pending prev) (const 0.) (prev +~. 1.))
+         recurrence (fun prev -> cond (is_pending prev) (const 0.) (prev + !1.))
        in
        compile ();
        { step_in = (fun x -> step [ Set (inp, x) ])
@@ -247,8 +251,9 @@ let () =
     (fun m ->
        let module M = (val m : Strategy_intf.S) in
        let open M in
+       let open M.Ops in
        let inp = input () in
-       let probe = value_when (inp >~ const 5.) inp in
+       let probe = value_when (inp > !5.) inp in
        compile ();
        { step_in = (fun x -> step [ Set (inp, x) ])
        ; read = (fun () -> value_option (value probe))
