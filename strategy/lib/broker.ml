@@ -80,7 +80,7 @@ let modify t id ?kind ?qty () =
 
 let trigger (b : C.bar) (o : order) =
   let high_first = b.high -. b.open_ <= b.open_ -. b.low in
-  let touch p =
+  let dist p =
     if high_first
     then
       if p >= b.open_
@@ -92,7 +92,7 @@ let trigger (b : C.bar) (o : order) =
   in
   let at_open = Some (b.open_, 0.) in
   let reached p =
-    if b.low <= p && p <= b.high then Some (p, touch p) else None
+    if b.low <= p && p <= b.high then Some (p, dist p) else None
   in
   match o.kind, o.side with
   | Market, _ -> at_open

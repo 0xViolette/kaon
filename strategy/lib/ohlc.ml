@@ -100,7 +100,7 @@ module Make () = struct
   let backtest
         ?(probes : (string * float signal) list = [])
         ?(on_bar = fun (_ : Report.t) -> ())
-        (strategy : Oms.desired signal list)
+        (orders : Oms.desired signal list)
     =
     compile ();
     let rec loop (resting : Oms.desired list) bars =
@@ -121,7 +121,7 @@ module Make () = struct
           ; Set (Account.net_pnl, ledger.realized)
           ];
         let submitted =
-          Oms.submit broker (List.filter_map value strategy)
+          Oms.submit broker (List.filter_map value orders)
         in
         let is_new (d : Oms.desired) =
           Bool.not
