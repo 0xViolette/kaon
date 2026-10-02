@@ -6,11 +6,6 @@ module Make () = struct
 
   include S'
 
-  type order_kind =
-    | Market
-    | Limit of float signal
-    | Stop of float signal
-
   let open_ : float signal = S'.input ()
   let high : float signal = S'.input ()
   let low : float signal = S'.input ()
@@ -23,7 +18,7 @@ module Make () = struct
   end
 
   module Position = struct
-    let net_qty : float signal = S'.input ()
+    let net_lots : float signal = S'.input ()
     let side : float signal = S'.input ()
 
     let entry_price =
@@ -57,7 +52,7 @@ module Make () = struct
   end
 
   let kind_signal = function
-    | Market -> const Order.Market
+    | Order.Market -> const Order.Market
     | Limit p -> fmap (Option.map (fun p -> Order.Limit p)) p
     | Stop p -> fmap (Option.map (fun p -> Order.Stop p)) p
   ;;
@@ -115,7 +110,7 @@ module Make () = struct
           ; Set (low, bar.low)
           ; Set (close, bar.close)
           ; Set (Position.side, Ledger.side ledger)
-          ; Set (Position.net_qty, Ledger.net_lots ledger)
+          ; Set (Position.net_lots, Ledger.net_lots ledger)
           ; Set (Account.initial_balance, ledger.initial_balance)
           ; Set (Account.net_pnl, ledger.realized)
           ];

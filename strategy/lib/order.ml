@@ -2,10 +2,10 @@ type side =
   | Buy
   | Sell
 
-type kind =
+type 'a kind =
   | Market
-  | Limit of float
-  | Stop of float
+  | Limit of 'a
+  | Stop of 'a
 
 type fill =
   { id : string
@@ -18,14 +18,14 @@ type order =
   { id : string
   ; seq : int
   ; side : side
-  ; kind : kind
+  ; kind : float kind
   ; qty : float
   }
 
 type request =
   { tag : string
   ; action : action
-  ; kind : kind
+  ; kind : float kind
   }
 
 and action =
