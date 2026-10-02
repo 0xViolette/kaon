@@ -16,7 +16,6 @@ module Make () = struct
   let low : float signal = S'.input ()
   let close : float signal = S'.input ()
   let lot_size = ledger.lot_size
-  (* let bar_index = tick *)
 
   module Account = struct
     let net_pnl : float signal = S'.input ()
@@ -58,17 +57,17 @@ module Make () = struct
   end
 
   let kind_signal = function
-    | Market -> Ops.(!Order.Market)
+    | Market -> const Order.Market
     | Limit p -> fmap (Option.map (fun p -> Order.Limit p)) p
     | Stop p -> fmap (Option.map (fun p -> Order.Stop p)) p
   ;;
 
-  let order tag intent target kind when_ : Oms.desired signal =
+  let order tag action target kind when_ =
     lift3
       (fun cond target kind ->
          match cond, target, kind with
          | Some true, Some target, Some kind ->
-           Some { Oms.tag; intent = intent target; kind }
+           Some { Order.tag; action = action target; kind }
          | _ -> None)
       when_
       target
@@ -76,34 +75,34 @@ module Make () = struct
   ;;
 
   let enter_long tag target kind when_ =
-    order tag (fun t -> Oms.Go_long t) target kind when_
+    order tag (fun t -> Order.Go_long t) target kind when_
   ;;
 
   let enter_short tag target kind when_ =
-    order tag (fun t -> Oms.Go_short t) target kind when_
+    order tag (fun t -> Order.Go_short t) target kind when_
   ;;
 
   let exit_long tag kind when_ =
-    order tag (fun _ -> Oms.Close_long) (const 0.) kind when_
+    order tag (fun _ -> Order.Close_long) (const 0.) kind when_
   ;;
 
   let exit_short tag kind when_ =
-    order tag (fun _ -> Oms.Close_short) (const 0.) kind when_
+    order tag (fun _ -> Order.Close_short) (const 0.) kind when_
   ;;
 
   type bar_report =
     { bar : Codec.Ohlc.bar
     ; fills : Order.fill list
-    ; placed : Oms.desired list
+    ; placed : Order.request list
     }
 
   let backtest
         ?(probes : (string * float signal) list = [])
         ?(on_bar = fun (_ : Report.t) -> ())
-        (orders : Oms.desired signal list)
+        (orders : Order.request signal list)
     =
     compile ();
-    let rec loop (resting : Oms.desired list) bars =
+    let rec loop (resting : Order.request list) bars =
       match bars () with
       | Seq.Nil -> prerr_endline "End of stream"
       | Seq.Cons (bar, rest) ->
@@ -123,10 +122,10 @@ module Make () = struct
         let submitted =
           Oms.submit broker (List.filter_map value orders)
         in
-        let is_new (d : Oms.desired) =
+        let is_new (d : Order.request) =
           Bool.not
             (List.exists
-               (fun (r : Oms.desired) -> String.equal r.tag d.tag)
+               (fun (r : Order.request) -> String.equal r.tag d.tag)
                resting)
         in
         on_bar

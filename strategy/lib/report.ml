@@ -3,7 +3,7 @@ type t =
   { bar : Codec.Ohlc.bar
   ; fills : Order.fill list
   ; placed :
-      Oms.desired list (* new this bar; continuing orders omitted *)
+      Order.request list (* new this bar; continuing orders omitted *)
   ; probes :
       (string * float option) list (* read after the graph stepped *)
   }
@@ -32,11 +32,11 @@ let date_time ts =
   date, Printf.sprintf "%02d:%02d %s" h12 tm.tm_min ampm
 ;;
 
-let describe_placed (d : Oms.desired) =
-  match d.kind with
-  | Order.Market -> d.tag ^ " placed @ mkt"
+let describe_placed (r : Order.request) =
+  match r.kind with
+  | Order.Market -> r.tag ^ " placed @ mkt"
   | Order.Limit p | Order.Stop p ->
-    Printf.sprintf "%s placed @ %s" d.tag (num p)
+    Printf.sprintf "%s placed @ %s" r.tag (num p)
 ;;
 
 (* fills first, then new placements, same order as your old event column *)

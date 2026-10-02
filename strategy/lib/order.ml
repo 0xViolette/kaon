@@ -21,3 +21,16 @@ type order =
   ; kind : kind
   ; qty : float
   }
+
+type request =
+  { tag : string
+  ; action : action
+  ; kind : kind
+  }
+
+and action =
+  | Go_long of float
+    (* be long [target]; covers a short first; no pyramiding *)
+  | Go_short of float
+  | Close_long (* flatten a long; no-op otherwise *)
+  | Close_short

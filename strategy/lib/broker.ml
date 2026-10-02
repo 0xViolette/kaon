@@ -15,7 +15,6 @@
 | 32     | 8    | float64 | close     |
 +--------+------+---------+-----------+
 *)
-
 open Order
 module C = Codec.Ohlc
 
@@ -117,11 +116,11 @@ let next_fill t =
       (fun (o : order) ->
          if blocked o
          then None
-         else
-           (match trigger t.bar o with
-            | Some (price, time, gap) when time >= t.clock ->
-              Some (time, gap, o, price)
-            | _ -> None))
+         else (
+           match trigger t.bar o with
+           | Some (price, time, gap) when time >= t.clock ->
+             Some (time, gap, o, price)
+           | _ -> None))
       t.orders
   in
   let earlier (t1, g1, (o1 : order), _) (t2, g2, (o2 : order), _) =
