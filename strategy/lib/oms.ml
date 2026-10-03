@@ -5,24 +5,24 @@ let side_of = function
   | Go_short _ | Close_long -> Sell
 ;;
 
+(* net is directional (+/-) *)
 let qty action ~net =
-  let s = Ledger.dir net in
   match action with
-  | Go_long target -> if s > 0. then target else target -. net
-  | Go_short target -> if s < 0. then target else target +. net
-  | Close_long -> if s > 0. then net else 0.
-  | Close_short -> if s < 0. then -.net else 0.
+  | Go_long target -> if net > 0. then target else target -. net
+  | Go_short target -> if net < 0. then target else target +. net
+  | Close_long -> if net > 0. then net else 0.
+  | Close_short -> if net < 0. then -.net else 0.
 ;;
 
-let submit broker requests =
-  let net = Broker.net_qty broker in
+let submit b requests =
+  let net = Broker.net_dir b *. Broker.net_lots b in
   List.filter_map
     (fun request ->
        let q = qty request.action ~net in
        if q > 0.
        then (
          Broker.place
-           broker
+           b
            ~id:request.tag
            (side_of request.action)
            request.kind
@@ -32,14 +32,14 @@ let submit broker requests =
     requests
 ;;
 
-let realign broker resting_requests =
-  let net = Broker.net_qty broker in
+let realign b resting_requests =
+  let net = Broker.net_dir b *. Broker.net_lots b in
   List.iter
     (fun request ->
        let q = qty request.action ~net in
        if q > 0.
-       then Broker.modify broker request.tag ~qty:q ()
-       else Broker.cancel broker request.tag)
+       then Broker.modify b request.tag ~qty:q ()
+       else Broker.cancel b request.tag)
     resting_requests
 ;;
 

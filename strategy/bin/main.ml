@@ -23,7 +23,7 @@ let strat () =
   let atr = Indicator.ema 20 atr1 in
   let mov = Indicator.ema ma close in
   let netequity =
-    (Account.initial_balance + Account.net_pnl) * !leverage
+    (Account.initial_balance + Account.realised_pnl) * !leverage
   in
   let qty1 = netequity * !risk / (!atrgunak * atr * !lot_size) in
   let con1 = floor qty1 in

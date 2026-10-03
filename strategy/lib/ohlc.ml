@@ -2,7 +2,6 @@ module Make () = struct
   module S' = Strategy.Make ()
 
   let broker = Broker.create ~lot_size:50. ~initial_balance:3_000_000.
-  let ledger = broker.Broker.ledger
 
   include S'
 
@@ -10,10 +9,10 @@ module Make () = struct
   let high : float signal = S'.input ()
   let low : float signal = S'.input ()
   let close : float signal = S'.input ()
-  let lot_size = ledger.lot_size
+  let lot_size = broker.lot_size
 
   module Account = struct
-    let net_pnl : float signal = S'.input ()
+    let realised_pnl : float signal = S'.input ()
     let initial_balance : float signal = S'.input ()
   end
 
@@ -22,11 +21,11 @@ module Make () = struct
     let side : float signal = S'.input ()
 
     let entry_price =
-      fmap (fun _ -> Ledger.entry_price ledger) (undefined ())
+      fmap (fun _ -> Broker.entry_price broker) (undefined ())
     ;;
 
     let avg_entry_price =
-      fmap (fun _ -> Ledger.avg_entry_price ledger) (undefined ())
+      fmap (fun _ -> Broker.avg_entry_price broker) (undefined ())
     ;;
   end
 
@@ -109,10 +108,11 @@ module Make () = struct
           ; Set (high, bar.high)
           ; Set (low, bar.low)
           ; Set (close, bar.close)
-          ; Set (Position.side, Ledger.side ledger)
-          ; Set (Position.net_lots, Ledger.net_lots ledger)
-          ; Set (Account.initial_balance, ledger.initial_balance)
-          ; Set (Account.net_pnl, ledger.realized)
+          ; Set (Position.side, Broker.net_dir broker)
+          ; Set (Position.net_lots, Broker.net_lots broker)
+          ; Set
+              (Account.initial_balance, broker.account.initial_balance)
+          ; Set (Account.realised_pnl, Broker.realised_pnl broker)
           ];
         let submitted =
           Oms.submit broker (List.filter_map value orders)
