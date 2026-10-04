@@ -48,18 +48,18 @@ and (_, _) unary =
 and _ def =
   | Undefined : 'a def
   | Const : 'a -> 'a def
-  | IsPending : 'a signal -> bool def
-  | Tick : int def
   | Input : 'a def
+  | Tick : int def
   | Pre : 'a signal -> 'a def
+  | Cond : bool signal * 'a signal * 'a signal -> 'a def
+  | IsPending : 'a signal -> bool def
   | Unary : ('a, 'b) unary * 'a signal -> 'b def
   | Binary : ('a, 'b, 'c) binary * 'a signal * 'b signal -> 'c def
   | Knot : 'a def
   | Rec : 'a signal * 'a signal -> 'a def
-  | Fmap : ('a option -> 'b option) * 'a signal -> 'b def
-  | Lift2 :
-      ('a option -> 'b option -> 'c option) * 'a signal * 'b signal
-      -> 'c def
+  | Fmap : ('a -> 'b) * 'a signal -> 'b def
+  | Lift2 : ('a -> 'b -> 'c) * 'a signal * 'b signal -> 'c def
+  | Reader : (unit -> 'b option) -> 'b def
 
 type signal_key =
   | KUnary : ('a, 'b) unary * int -> signal_key

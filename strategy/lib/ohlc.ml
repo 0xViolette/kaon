@@ -20,13 +20,10 @@ module Make () = struct
   module Position = struct
     let open_lots : float signal = S'.input ()
     let direction : float signal = S'.input ()
-
-    let entry_price =
-      fmap (fun _ -> Broker.entry_price broker) (undefined ())
-    ;;
+    let entry_price = read (fun _ -> Broker.entry_price broker)
 
     let avg_entry_price =
-      fmap (fun _ -> Broker.avg_entry_price broker) (undefined ())
+      read (fun _ -> Broker.avg_entry_price broker)
     ;;
   end
 
@@ -53,20 +50,19 @@ module Make () = struct
 
   let kind_signal = function
     | Order.Market -> const Order.Market
-    | Limit p -> fmap (Option.map (fun p -> Order.Limit p)) p
-    | Stop p -> fmap (Option.map (fun p -> Order.Stop p)) p
+    | Limit p -> fmap (fun p -> Order.Limit p) p
+    | Stop p -> fmap (fun p -> Order.Stop p) p
   ;;
 
+  (* Lift pure values into signals *)
+
   let order id action target kind when_ =
-    lift3
-      (fun cond target kind ->
-         match cond, target, kind with
-         | Some true, Some target, Some kind ->
-           Some { Order.id; action = action target; kind }
-         | _ -> None)
-      when_
-      target
-      (kind_signal kind)
+    let make_request =
+      pure (fun target kind ->
+        { Order.id; action = action target; kind })
+    in
+    let req = make_request <*> target <*> kind_signal kind in
+    cond when_ req (undefined ())
   ;;
 
   let enter_long id target kind when_ =

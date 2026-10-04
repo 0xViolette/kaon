@@ -307,16 +307,16 @@ let () =
     })
 ;;
 
-(* 11. bar_index is [tick], which counts bars from 1 (the runtime seeds
-   the counter at Some 1 on the first bar), so we read it as a float. *)
+(* 11. bar_index is [tick], which counts bars from 0 (the runtime seeds the
+   counter at Some 0 on the first bar), so we read it as a float. *)
 let () =
   let xs = [| 1.; 2.; 3.; 4.; 5. |] in
-  let expected = [| Some 1.; Some 2.; Some 3.; Some 4.; Some 5. |] in
+  let expected = [| Some 0.; Some 1.; Some 2.; Some 3.; Some 4. |] in
   run "bar_index" xs expected (fun m ->
     let module M = (val m : Strategy_intf.S) in
     let open M in
     let inp = input () in
-    let probe = fmap (Option.map Float.of_int) tick in
+    let probe = fmap Float.of_int tick in
     compile ();
     { step_in = (fun x -> step [ Set (inp, x) ])
     ; read = (fun () -> value_option (value probe))

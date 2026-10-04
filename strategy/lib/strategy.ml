@@ -61,40 +61,14 @@ module Make () : S = struct
 
   let fmap f a = Graph.fmap g f a
   let lift2 f a b = Graph.lift2 g f a b
+  let read f = Graph.read g f
+  let pure = const
+  let ( <*> ) f x = lift2 ( @@ ) f x
+  let cond c t e = Graph.cond g c t e
 
-  let lift3 f a b c =
-    lift2
-      (fun ab c ->
-         match ab with
-         | Some f -> f c
-         | None -> None)
-      (lift2 (fun a b -> Some (fun c -> f a b c)) a b)
-      c
+  let value_when event signal =
+    recurrence (fun prev -> cond event signal prev)
   ;;
-
-  let lift4 f a b c d =
-    lift2
-      (fun abc d ->
-         match abc with
-         | Some f -> f d
-         | None -> None)
-      (lift3 (fun a b c -> Some (fun d -> f a b c d)) a b c)
-      d
-  ;;
-
-  let cond c t e =
-    lift3
-      (fun c t e ->
-         match c with
-         | Some true -> t
-         | Some false -> e
-         | None -> None)
-      c
-      t
-      e
-  ;;
-
-  let value_when event signal = recurrence (fun prev -> cond event signal prev)
 
   let compile () =
     match !r with
@@ -106,7 +80,10 @@ module Make () : S = struct
 
   module Indicator = struct
     let sum n s =
-      let acc = recurrence (fun prev -> cond (is_pending prev) s Ops.(prev + s)) in
+      let acc =
+        recurrence (fun prev ->
+          cond (is_pending prev) s Ops.(prev + s))
+      in
       recurrence (fun prev ->
         cond
           (is_pending prev)
@@ -129,8 +106,17 @@ module Make () : S = struct
 
     let crossover a b = Ops.(pre a < pre b && a > b)
     let crossunder a b = Ops.(pre a > pre b && a < b)
-    let highest n s = window n s |> List.fold_left max @@ const Float.neg_infinity
-    let lowest n s = window n s |> List.fold_left min @@ const Float.infinity
-    let bars_since c = recurrence Ops.(fun prev -> cond c !0. (prev + !1.0))
+
+    let highest n s =
+      window n s |> List.fold_left max @@ const Float.neg_infinity
+    ;;
+
+    let lowest n s =
+      window n s |> List.fold_left min @@ const Float.infinity
+    ;;
+
+    let bars_since c =
+      recurrence Ops.(fun prev -> cond c !0. (prev + !1.0))
+    ;;
   end
 end

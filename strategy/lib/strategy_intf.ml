@@ -38,28 +38,11 @@ module type S = sig
   val cond : bool signal -> 'a signal -> 'a signal -> 'a signal
   val value_when : bool signal -> 'a signal -> 'a signal
   val is_pending : float signal -> bool signal
-  val fmap : ('a option -> 'b option) -> 'a signal -> 'b signal
-
-  val lift2
-    :  ('a option -> 'b option -> 'c option)
-    -> 'a signal
-    -> 'b signal
-    -> 'c signal
-
-  val lift3
-    :  ('a option -> 'b option -> 'c option -> 'd option)
-    -> 'a signal
-    -> 'b signal
-    -> 'c signal
-    -> 'd signal
-
-  val lift4
-    :  ('a option -> 'b option -> 'c option -> 'd option -> 'e option)
-    -> 'a signal
-    -> 'b signal
-    -> 'c signal
-    -> 'd signal
-    -> 'e signal
+  val fmap : ('a -> 'b) -> 'a signal -> 'b signal
+  val lift2 : ('a -> 'b -> 'c) -> 'a signal -> 'b signal -> 'c signal
+  val read : (unit -> 'b option) -> 'b signal
+  val ( <*> ) : ('a -> 'b) signal -> 'a signal -> 'b signal
+  val pure : 'a -> 'a signal
 
   module Indicator : sig
     val max : float signal -> float signal -> float signal

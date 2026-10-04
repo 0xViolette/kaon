@@ -58,7 +58,7 @@ let check_operands : type a. int -> a def -> unit =
     then failwith "make: operand belongs to a different graph"
   in
   match def with
-  | Undefined | Const _ | Input | Knot | Tick -> ()
+  | Undefined | Const _ | Input | Knot | Tick | Reader _ -> ()
   | Pre src -> check src
   | Unary (_, src) -> check src
   | IsPending src -> check src
@@ -72,15 +72,31 @@ let check_operands : type a. int -> a def -> unit =
   | Lift2 (_, a, b) ->
     check a;
     check b
+  | Cond (c, t, e) ->
+    check c;
+    check t;
+    check e
 ;;
 
-let make t graph_id rank def =
+let rec rank_of : type a. a def -> int = function
+  | Undefined | Const _ | Input | Tick | Knot | Reader _ -> 0
+  | Pre s -> 1 + s.rank
+  | IsPending s -> 1 + s.rank
+  | Unary (_, s) -> 1 + s.rank
+  | Fmap (_, s) -> 1 + s.rank
+  | Cond (c, t, e) -> 1 + Int.max c.rank (Int.max t.rank e.rank)
+  | Binary (_, l, r) -> 1 + Int.max l.rank r.rank
+  | Lift2 (_, l, r) -> 1 + Int.max l.rank r.rank
+  | Rec (_, result) -> 1 + result.rank
+;;
+
+let make t graph_id def =
   check_operands graph_id def;
   let fresh ?key () =
     let signal =
       { id = t.counter
       ; graph_id
-      ; rank
+      ; rank = rank_of def
       ; def
       ; cur = None
       ; prev = None

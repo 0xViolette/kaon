@@ -56,7 +56,7 @@ let compile (g : Graph.t) =
           s.cur
           <- (match s.cur with
               | Some n -> Some (n + 1)
-              | None -> Some 1))
+              | None -> Some 0))
     | Pre src ->
       Some
         (fun () ->
@@ -87,6 +87,15 @@ let compile (g : Graph.t) =
           <- (match l.cur, r.cur with
               | None, _ | _, None -> None
               | Some l, Some r -> Some (eval_binary op l r)))
+    | Cond (c, t, e) ->
+      Some
+        (fun () ->
+          s.prev <- s.cur;
+          s.cur
+          <- (match c.cur with
+              | Some true -> t.cur
+              | Some false -> e.cur
+              | _ -> None))
     | Rec (_, result) ->
       Some
         (fun () ->
@@ -96,12 +105,23 @@ let compile (g : Graph.t) =
       Some
         (fun () ->
           s.prev <- s.cur;
-          s.cur <- f src.cur)
+          s.cur
+          <- (match src.cur with
+              | Some x -> Some (f x)
+              | None -> None))
+    | Reader f ->
+      Some
+        (fun () ->
+          s.prev <- s.cur;
+          s.cur <- f ())
     | Lift2 (f, a, b) ->
       Some
         (fun () ->
           s.prev <- s.cur;
-          s.cur <- f a.cur b.cur)
+          s.cur
+          <- (match a.cur, b.cur with
+              | Some x, Some y -> Some (f x y)
+              | _ -> None))
   in
   let steps =
     List.rev
