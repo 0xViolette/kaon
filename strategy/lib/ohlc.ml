@@ -12,13 +12,14 @@ module Make () = struct
   let lot_size = broker.lot_size
 
   module Account = struct
+    let cash : float signal = S'.input ()
     let realised_pnl : float signal = S'.input ()
     let initial_balance : float signal = S'.input ()
   end
 
   module Position = struct
-    let net_lots : float signal = S'.input ()
-    let side : float signal = S'.input ()
+    let open_lots : float signal = S'.input ()
+    let direction : float signal = S'.input ()
 
     let entry_price =
       fmap (fun _ -> Broker.entry_price broker) (undefined ())
@@ -56,32 +57,32 @@ module Make () = struct
     | Stop p -> fmap (Option.map (fun p -> Order.Stop p)) p
   ;;
 
-  let order tag action target kind when_ =
+  let order id action target kind when_ =
     lift3
       (fun cond target kind ->
          match cond, target, kind with
          | Some true, Some target, Some kind ->
-           Some { Order.tag; action = action target; kind }
+           Some { Order.id; action = action target; kind }
          | _ -> None)
       when_
       target
       (kind_signal kind)
   ;;
 
-  let enter_long tag target kind when_ =
-    order tag (fun t -> Order.Go_long t) target kind when_
+  let enter_long id target kind when_ =
+    order id (fun t -> Order.Enter_long t) target kind when_
   ;;
 
-  let enter_short tag target kind when_ =
-    order tag (fun t -> Order.Go_short t) target kind when_
+  let enter_short id target kind when_ =
+    order id (fun t -> Order.Enter_short t) target kind when_
   ;;
 
-  let exit_long tag kind when_ =
-    order tag (fun _ -> Order.Close_long) (const 0.) kind when_
+  let exit_long id kind when_ =
+    order id (fun _ -> Order.Exit_long) (const 0.) kind when_
   ;;
 
-  let exit_short tag kind when_ =
-    order tag (fun _ -> Order.Close_short) (const 0.) kind when_
+  let exit_short id kind when_ =
+    order id (fun _ -> Order.Exit_short) (const 0.) kind when_
   ;;
 
   type bar_report =
@@ -101,26 +102,27 @@ module Make () = struct
       | Seq.Nil -> prerr_endline "End of stream"
       | Seq.Cons (bar, rest) ->
         Broker.start_bar broker bar;
-        let fills = Oms.settle broker resting in
+        let fills = Oms.fill_resting_orders broker resting in
         Broker.end_bar broker;
         step
           [ Set (open_, bar.open_)
           ; Set (high, bar.high)
           ; Set (low, bar.low)
           ; Set (close, bar.close)
-          ; Set (Position.side, Broker.net_dir broker)
-          ; Set (Position.net_lots, Broker.net_lots broker)
+          ; Set (Position.direction, Broker.net_dir broker)
+          ; Set (Position.open_lots, Broker.net_lots broker)
           ; Set
               (Account.initial_balance, broker.account.initial_balance)
+          ; Set (Account.cash, broker.account.cash)
           ; Set (Account.realised_pnl, Broker.realised_pnl broker)
           ];
         let submitted =
-          Oms.submit broker (List.filter_map value orders)
+          Oms.place_orders broker (List.filter_map value orders)
         in
         let is_new (d : Order.request) =
           Bool.not
             (List.exists
-               (fun (r : Order.request) -> String.equal r.tag d.tag)
+               (fun (r : Order.request) -> String.equal r.id d.id)
                resting)
         in
         on_bar

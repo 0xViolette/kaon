@@ -34,9 +34,9 @@ let date_time ts =
 
 let describe_placed (r : Order.request) =
   match r.kind with
-  | Order.Market -> r.tag ^ " placed @ mkt"
+  | Order.Market -> r.id ^ " placed @ mkt"
   | Order.Limit p | Order.Stop p ->
-    Printf.sprintf "%s placed @ %s" r.tag (num p)
+    Printf.sprintf "%s placed @ %s" r.id (num p)
 ;;
 
 (* fills first, then new placements, same order as your old event column *)
@@ -65,6 +65,6 @@ let csv_row (r : t) =
      @ List.map (fun (_, v) -> cell v) r.probes
      @ [ events r
        ; pipe (fun (f : Order.fill) -> num f.price)
-       ; pipe (fun (f : Order.fill) -> num f.qty)
+       ; pipe (fun (f : Order.fill) -> num f.lots)
        ])
 ;;

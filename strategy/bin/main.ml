@@ -13,10 +13,10 @@ let strat () =
   let le = Indicator.highest echannel high + !0.05 in
   let se = Indicator.lowest echannel low - !0.05 in
   let entered_long =
-    Position.side > !0. && pre Position.side <= !0.
+    Position.direction > !0. && pre Position.direction <= !0.
   in
   let entered_short =
-    Position.side < !0. && pre Position.side >= !0.
+    Position.direction < !0. && pre Position.direction >= !0.
   in
   let entered_trade = entered_long || entered_short in
   let atr1 = Indicator.sma atrbars Indicator.tr in
@@ -51,11 +51,11 @@ let strat () =
     exit_short "2NS" (Stop sx2n) (Position.entry_price < le)
   in
   let cover_s = exit_short "LE cover" (Stop le) bullish in
-  let go_long = enter_long "LE" tradecon (Stop le) bullish in
+  let enter_long = enter_long "LE" tradecon (Stop le) bullish in
   let cover_l = exit_long "SE cover" (Stop se) bearish in
-  let go_short = enter_short "SE" tradecon (Stop se) bearish in
+  let enter_short = enter_short "SE" tradecon (Stop se) bearish in
   let orders =
-    [ stop_l; stop_s; cover_s; go_long; cover_l; go_short ]
+    [ stop_l; stop_s; cover_s; enter_long; cover_l; enter_short ]
   in
   let probes =
     [ "atr1", atr1

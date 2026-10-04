@@ -11,7 +11,7 @@ type fill =
   { id : string
   ; side : side
   ; price : float
-  ; qty : float
+  ; lots : float
   }
 
 type order =
@@ -19,18 +19,18 @@ type order =
   ; seq : int
   ; side : side
   ; kind : float kind
-  ; qty : float
+  ; lots : float
   }
 
 type request =
-  { tag : string
+  { id : string
   ; action : action
   ; kind : float kind
   }
 
 and action =
-  | Go_long of float
+  | Enter_long of float
     (* be long [target]; covers a short first; no pyramiding *)
-  | Go_short of float
-  | Close_long (* flatten a long; no-op otherwise *)
-  | Close_short
+  | Enter_short of float
+  | Exit_long (* flatten a long; no-op otherwise *)
+  | Exit_short

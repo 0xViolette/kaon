@@ -126,7 +126,7 @@ type t =
   ; account : Account.t
   ; mutable positions : Positions.t
   ; mutable bar : C.bar
-  ; mutable clock : float
+  ; mutable path_cursor : float
   ; mutable next_seq : int
   ; mutable orders : order list
   }
@@ -142,23 +142,24 @@ let create ~lot_size ~initial_balance =
       ; low = nan
       ; close = nan
       }
-  ; clock = 0.
+  ; path_cursor = 0.
   ; next_seq = 0
   ; orders = []
   }
 ;;
 
 let net_lots t = Positions.net_lots t.positions
-let net_qty t = t.lot_size *. net_lots t
+let net_units t = t.lot_size *. net_lots t
 let net_dir t = Positions.dir t.positions
-let qty_of_lots t lots = lots *. t.lot_size
+let signed_net_lots t = net_dir t *. net_lots t
+let units_of_lots t lots = lots *. t.lot_size
 let entry_price t = Positions.entry_price t.positions
 let avg_entry_price t = Positions.avg_entry_price t.positions
 let realised_pnl t = t.account.realised_pnl
 
 let start_bar t bar =
   t.bar <- bar;
-  t.clock <- 0.
+  t.path_cursor <- 0.
 ;;
 
 let end_bar t = t.orders <- []
@@ -170,9 +171,10 @@ let cancel t id =
        t.orders
 ;;
 
-let place t ~id side kind qty =
+let place t ~id side kind lots =
   cancel t id;
-  t.orders <- t.orders @ [ { id; seq = t.next_seq; side; kind; qty } ];
+  t.orders
+  <- t.orders @ [ { id; seq = t.next_seq; side; kind; lots } ];
   t.next_seq <- t.next_seq + 1
 ;;
 
@@ -184,7 +186,7 @@ let modify t id ?kind ?qty () =
           then
             { o with
               kind = Option.value kind ~default:o.kind
-            ; qty = Option.value qty ~default:o.qty
+            ; lots = Option.value qty ~default:o.lots
             }
           else o)
        t.orders
@@ -194,10 +196,19 @@ let bar_path (b : C.bar) =
   if b.high -. b.open_ <= b.open_ -. b.low then `OHLC else `OLHC
 ;;
 
+(* a candidate execution on the current bar: [path_dist] is the distance
+   along the bar's assumed path at which the fill happens (a price distance,
+   not a time); [open_priority] sequences fills that all happen at the open *)
+type execution =
+  { price : float
+  ; path_dist : float
+  ; open_priority : float
+  }
+
 (* when the open gaps through several stops at once they all fill at the
    open; sequence them by how far each level lies beyond the open along the
    incoming path (the level hit first on the way down/up fills first) *)
-let trigger (b : C.bar) (o : order) =
+let fill_on_bar (b : C.bar) (o : order) : execution option =
   let dist p =
     match bar_path b with
     | `OHLC ->
@@ -209,12 +220,16 @@ let trigger (b : C.bar) (o : order) =
       then b.open_ -. p
       else b.open_ -. b.low +. (p -. b.low)
   in
-  let at_open gap = Some (b.open_, 0., gap) in
+  let at_open open_priority =
+    Some { price = b.open_; path_dist = 0.; open_priority }
+  in
   let reached p =
-    if b.low <= p && p <= b.high then Some (p, dist p, 0.) else None
+    if b.low <= p && p <= b.high
+    then Some { price = p; path_dist = dist p; open_priority = 0. }
+    else None
   in
   match o.kind, o.side with
-  | Market, _ -> Some (b.open_, 0., 0.)
+  | Market, _ -> Some { price = b.open_; path_dist = 0.; open_priority = 0. }
   | Limit p, Buy | Stop p, Sell ->
     if b.open_ <= p then at_open (-.p) else reached p
   | Limit p, Sell | Stop p, Buy ->
@@ -234,28 +249,30 @@ let next_fill (t : t) =
          if blocked o
          then None
          else (
-           match trigger t.bar o with
-           | Some (price, time, gap) when time >= t.clock ->
-             Some (time, gap, o, price)
+           match fill_on_bar t.bar o with
+           | Some exec when exec.path_dist >= t.path_cursor -> Some (exec, o)
            | _ -> None))
       t.orders
   in
-  let earlier (t1, g1, (o1 : order), _) (t2, g2, (o2 : order), _) =
-    compare (t1, g1, o1.seq) (t2, g2, o2.seq)
+  let earlier (e1, (o1 : order)) (e2, (o2 : order)) =
+    compare
+      (e1.path_dist, e1.open_priority, o1.seq)
+      (e2.path_dist, e2.open_priority, o2.seq)
   in
   match List.sort earlier candidates with
   | [] -> None
-  | (time, _, o, price) :: _ ->
-    t.clock <- time;
+  | (exec, o) :: _ ->
+    t.path_cursor <- exec.path_dist;
     cancel t o.id;
+    let price = exec.price in
     let side =
       match o.side with
       | Buy -> Position.Long
       | Sell -> Position.Short
     in
     let delta_cash =
-      -.Position.dir { lots = o.qty; price; side }
-      *. qty_of_lots t o.qty
+      -.Position.dir { lots = o.lots; price; side }
+      *. units_of_lots t o.lots
       *. price
     in
     Account.update_cash t.account delta_cash;
@@ -263,9 +280,9 @@ let next_fill (t : t) =
       Positions.add
         ~lot_size:t.lot_size
         t.positions
-        { lots = o.qty; price; side }
+        { lots = o.lots; price; side }
     in
     t.positions <- updated_positions;
     Account.update_realised_pnl t.account delta_pnl;
-    Some { id = o.id; side = o.side; price; qty = o.qty }
+    Some { id = o.id; side = o.side; price; lots = o.lots }
 ;;
