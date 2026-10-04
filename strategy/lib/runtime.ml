@@ -71,22 +71,6 @@ let compile (g : Graph.t) =
            (fun () ->
              s.prev <- s.cur;
              s.cur <- target.cur))
-    | Unary (op, src) ->
-      Some
-        (fun () ->
-          s.prev <- s.cur;
-          s.cur
-          <- (match src.cur with
-              | None -> None
-              | Some x -> Some (eval_unary op x)))
-    | Binary (op, l, r) ->
-      Some
-        (fun () ->
-          s.prev <- s.cur;
-          s.cur
-          <- (match l.cur, r.cur with
-              | None, _ | _, None -> None
-              | Some l, Some r -> Some (eval_binary op l r)))
     | Cond (c, t, e) ->
       Some
         (fun () ->

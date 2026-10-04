@@ -31,43 +31,33 @@ let tick g = make g Tick
 let cond g c t e = make g (Cond (c, t, e))
 
 (* constant folding: an operation on constants is itself a constant *)
-let unary =
-  fun op g a ->
-  match a.def with
-  | Const x -> const g (eval_unary op x)
-  | _ -> make g (Unary (op, a))
-;;
-
-let binary =
-  fun op g a b ->
-  match a.def, b.def with
-  | Const x, Const y -> const g (eval_binary op x y)
-  | _ -> make g (Binary (op, a, b))
-;;
+let fmap g f a = make g (Language.Fmap (f, a))
+let read g f = make g (Language.Reader f)
+let lift2 g f a b = make g (Language.Lift2 (f, a, b))
 
 (*unary operations*)
-let neg = unary Neg
-let abs = unary Abs
-let sqrt = unary Sqrt
-let not = unary Not
-let floor = unary Floor
-let ceil = unary Ceil
+let neg g = fmap g Float.neg
+let abs g = fmap g Float.abs
+let sqrt g = fmap g Float.sqrt
+let not g = fmap g Bool.not
+let floor g = fmap g Float.floor
+let ceil g = fmap g Float.ceil
 
 (*binary operations*)
-let add = binary Add
-let sub = binary Sub
-let mul = binary Mul
-let div = binary Div
-let eq g a b = binary Eq g a b
-let neq g a b = binary Neq g a b
-let lt = binary Lt
-let le = binary Le
-let gt = binary Gt
-let ge = binary Ge
-let min = binary Min
-let max = binary Max
-let and_ = binary And
-let or_ = binary Or
+let add g = lift2 g Float.add
+let sub g = lift2 g Float.sub
+let mul g = lift2 g Float.mul
+let div g = lift2 g Float.div
+let eq g = lift2 g ( = )
+let neq g = lift2 g ( <> )
+let lt g = lift2 g ( < )
+let le g = lift2 g ( <= )
+let gt g = lift2 g ( > )
+let ge g = lift2 g ( >= )
+let min g = lift2 g Float.min
+let max g = lift2 g Float.max
+let and_ g = lift2 g ( && )
+let or_ g = lift2 g ( || )
 
 let pre g a =
   match a.def with
@@ -104,7 +94,3 @@ let recurrence g (body : 'a Language.signal -> 'a Language.signal)
   let result = body knot in
   make g (Rec (knot, result))
 ;;
-
-let fmap g f a = make g (Language.Fmap (f, a))
-let read g f = make g (Language.Reader f)
-let lift2 g f a b = make g (Language.Lift2 (f, a, b))
