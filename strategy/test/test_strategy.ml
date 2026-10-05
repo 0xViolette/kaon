@@ -211,7 +211,9 @@ let () =
        let flag = input () in
        let probe = cond flag (price + !1.) (price - !1.) in
        compile ();
-       { step_in = (fun (f, b) -> step [ Set (price, f); Set (flag, b) ])
+       { step_in =
+           (fun (f, b) ->
+              step [ Set (price, f); Set (flag, if b then 1. else 0.) ])
        ; read = (fun () -> value_option (value probe))
        })
 ;;

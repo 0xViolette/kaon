@@ -316,7 +316,7 @@ let () =
     let module M = (val m : Strategy_intf.S) in
     let open M in
     let inp = input () in
-    let probe = fmap Float.of_int tick in
+    let probe = tick in
     compile ();
     { step_in = (fun x -> step [ Set (inp, x) ])
     ; read = (fun () -> value_option (value probe))

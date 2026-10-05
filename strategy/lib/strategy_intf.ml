@@ -1,68 +1,84 @@
 module type S = sig
   type 'a signal
-  type set = Set : 'a signal * 'a -> set
+  type set = Set : float signal * float -> set
 
   val mul : float signal -> float signal -> float signal
-  val tick : int signal
+  val tick : float signal
   val compile : unit -> unit
   val step : set list -> unit
-  val const : 'a -> 'a signal
-  val undefined : unit -> 'a signal
+  val const : float -> float signal
+  val undefined : unit -> float signal
   val value : 'a signal -> 'a option
-  val input : unit -> 'a signal
+  val input : unit -> float signal
   val pre : 'a signal -> 'a signal
   val delay : int -> 'a signal -> 'a signal
   val window : int -> 'a signal -> 'a signal list
-  val recurrence : ('a signal -> 'a signal) -> 'a signal
+  val recurrence : (float signal -> float signal) -> float signal
 
   module Ops : sig
-    val ( ! ) : 'a -> 'a signal
+    val ( ! ) : float -> float signal
     val ( + ) : float signal -> float signal -> float signal
     val ( * ) : float signal -> float signal -> float signal
     val ( - ) : float signal -> float signal -> float signal
     val ( / ) : float signal -> float signal -> float signal
-    val ( < ) : float signal -> float signal -> bool signal
-    val ( <= ) : float signal -> float signal -> bool signal
-    val ( > ) : float signal -> float signal -> bool signal
-    val ( >= ) : float signal -> float signal -> bool signal
-    val ( && ) : bool signal -> bool signal -> bool signal
-    val ( || ) : bool signal -> bool signal -> bool signal
-    val ( = ) : 'a signal -> 'a signal -> bool signal
-    val ( <> ) : 'a signal -> 'a signal -> bool signal
+    val ( < ) : float signal -> float signal -> float signal
+    val ( <= ) : float signal -> float signal -> float signal
+    val ( > ) : float signal -> float signal -> float signal
+    val ( >= ) : float signal -> float signal -> float signal
+    val ( && ) : float signal -> float signal -> float signal
+    val ( || ) : float signal -> float signal -> float signal
+    val ( = ) : float signal -> float signal -> float signal
+    val ( <> ) : float signal -> float signal -> float signal
     val abs : float signal -> float signal
-    val not : bool signal -> bool signal
+    val not : float signal -> float signal
     val sqrt : float signal -> float signal
     val floor : float signal -> float signal
     val ceil : float signal -> float signal
   end
 
-  val cond : bool signal -> 'a signal -> 'a signal -> 'a signal
-  val value_when : bool signal -> 'a signal -> 'a signal
-  val is_pending : float signal -> bool signal
-  val fmap : ('a option -> 'b option) -> 'a signal -> 'b signal
+  val cond
+    :  float signal
+    -> float signal
+    -> float signal
+    -> float signal
+
+  val value_when : float signal -> float signal -> float signal
+  val is_pending : float signal -> float signal
+  val fmap : (float -> float) -> float signal -> float signal
 
   val lift2
+    :  (float -> float -> float)
+    -> float signal
+    -> float signal
+    -> float signal
+
+  val map : (float -> float) -> float signal -> float signal
+  val gmap : ('a option -> 'b option) -> 'a signal -> 'b signal
+
+  val emap2
     :  ('a option -> 'b option -> 'c option)
     -> 'a signal
     -> 'b signal
     -> 'c signal
 
-  val map : ('a -> 'b) -> 'a signal -> 'b signal
-  val map2 : ('a -> 'b -> 'c) -> 'a signal -> 'b signal -> 'c signal
+  val map2
+    :  (float -> float -> float)
+    -> float signal
+    -> float signal
+    -> float signal
+
   val read : (unit -> 'b option) -> 'b signal
-  val ( <*> ) : ('a -> 'b) signal -> 'a signal -> 'b signal
-  val pure : 'a -> 'a signal
 
   module Indicator : sig
     val max : float signal -> float signal -> float signal
     val min : float signal -> float signal -> float signal
     val sma : int -> float signal -> float signal
     val ema : int -> float signal -> float signal
-    val crossover : float signal -> float signal -> bool signal
+    val crossover : float signal -> float signal -> float signal
     val highest : int -> float signal -> float signal
     val lowest : int -> float signal -> float signal
-    val bars_since : bool signal -> float signal
-    val crossunder : float signal -> float signal -> bool signal
+    val bars_since : float signal -> float signal
+    val crossunder : float signal -> float signal -> float signal
   end
 end
 

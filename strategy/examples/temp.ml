@@ -20,8 +20,8 @@ let pp_float = function
 
 let pp_bool = function
   | None -> "None"
-  | Some true -> "true"
-  | Some false -> "false"
+  | Some 0. -> "false"
+  | Some _ -> "true"
 ;;
 
 let value_option = function
@@ -58,25 +58,25 @@ let raw_notes =
 
 let raw_expected_over =
   [| None
-   ; Some false
-   ; Some true
-   ; Some false
-   ; Some false
-   ; Some false
-   ; Some false
-   ; Some true
+   ; Some 0.
+   ; Some 1.
+   ; Some 0.
+   ; Some 0.
+   ; Some 0.
+   ; Some 0.
+   ; Some 1.
   |]
 ;;
 
 let raw_expected_under =
   [| None
-   ; Some false
-   ; Some false
-   ; Some false
-   ; Some false
-   ; Some false
-   ; Some true
-   ; Some false
+   ; Some 0.
+   ; Some 0.
+   ; Some 0.
+   ; Some 0.
+   ; Some 0.
+   ; Some 1.
+   ; Some 0.
   |]
 ;;
 
@@ -152,10 +152,10 @@ let () =
        let cu = Trend.value cross_under in
        let signal =
          match value_option co, value_option cu with
-         | Some true, _ ->
+         | Some 1., _ ->
            incr buys;
            "  <-- GOLDEN CROSS (buy)"
-         | _, Some true ->
+         | _, Some 1. ->
            incr sells;
            "  <-- DEATH CROSS (sell)"
          | _ -> ""

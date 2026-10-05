@@ -2,11 +2,11 @@ include Strategy_intf
 
 module Make () : S = struct
   type 'a signal = 'a Language.signal
-  type set = Runtime.set = Set : 'a signal * 'a -> set
+  type set = Runtime.set = Set : float signal * float -> set
 
   let g = Graph.create ()
   let r = ref None
-  let tick : int signal = Graph.tick g
+  let tick : float signal = Graph.tick g
 
   let step setters =
     match !r with
@@ -41,46 +41,25 @@ module Make () : S = struct
   let recurrence f = Graph.recurrence g f
   let lift2 f a b = Graph.lift2 g f a b
   let fmap f a = Graph.fmap g f a
-  let read f = fmap (fun _ -> f ()) (undefined ())
+  let gmap f a = Graph.gmap g f a
+  let emap2 f a b = Graph.emap2 g f a b
+  let cond c t e = Graph.cond g c t e
+  let read f = gmap (fun _ -> f ()) (undefined ())
+  let map f = fmap (fun a -> if Float.is_nan a then nan else f a)
 
   let map2 f =
     lift2 (fun a b ->
-      match a, b with
-      | Some a, Some b -> Some (f a b)
-      | _ -> None)
+      if Float.is_nan a || Float.is_nan b then nan else f a b)
   ;;
 
-  let pure = const
-  let ( <*> ) f x = map2 ( @@ ) f x
-  let map f a = pure f <*> a
-
-  let lift3 f a b c =
-    lift2
-      (fun ab c ->
-         match ab, c with
-         | Some (a, b), c -> f a b c
-         | _ -> None)
-      (lift2 (fun a b -> Some (a, b)) a b)
-      c
-  ;;
-
-  let cond c t e =
-    lift3
-      (fun c t e ->
-         match c with
-         | Some true -> t
-         | Some false -> e
-         | None -> None)
-      c
-      t
-      e
-  ;;
+  (* booleans are floats: [0.] is false, anything else true, [nan] pending *)
+  let of_bool b = if b then 1. else 0.
 
   (*unary operations*)
   let neg = map Float.neg
   let abs = map Float.abs
   let sqrt = map Float.sqrt
-  let not = map Bool.not
+  let not = map (fun b -> of_bool (b = 0.))
   let floor = map Float.floor
   let ceil = map Float.ceil
 
@@ -89,17 +68,17 @@ module Make () : S = struct
   let sub = map2 Float.sub
   let mul = map2 Float.mul
   let div = map2 Float.div
-  let eq a b = map2 ( = ) a b
-  let neq a b = map2 ( <> ) a b
-  let lt = map2 ( < )
-  let le = map2 ( <= )
-  let gt = map2 ( > )
-  let ge = map2 ( >= )
+  let eq = map2 (fun a b -> of_bool (a = b))
+  let neq = map2 (fun a b -> of_bool (a <> b))
+  let lt = map2 (fun a b -> of_bool (a < b))
+  let le = map2 (fun a b -> of_bool (a <= b))
+  let gt = map2 (fun a b -> of_bool (a > b))
+  let ge = map2 (fun a b -> of_bool (a >= b))
   let min = map2 Float.min
   let max = map2 Float.max
-  let and_ = map2 ( && )
-  let or_ = map2 ( || )
-  let is_pending s = fmap (Fun.compose Option.some Option.is_none) s
+  let and_ = map2 (fun a b -> of_bool (a <> 0. && b <> 0.))
+  let or_ = map2 (fun a b -> of_bool (a <> 0. || b <> 0.))
+  let is_pending = fmap (fun a -> of_bool (Float.is_nan a))
 
   module Ops = struct
     let ( ! ) = const

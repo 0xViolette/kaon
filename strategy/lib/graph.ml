@@ -18,37 +18,27 @@ let create () =
 
 open Language
 
-let make g def =
+let make g (def : 'a def) =
   if not g.compiled
   then Context.make g.ctx g.id def
   else failwith "Cannot mess with a compiled graph"
 ;;
 
-let undefined g = make g Undefined
-let const g v = make g (Const v)
-let input g = make g Input
-let tick g = make g Tick
+let undefined g = make g Undefined Float
+let const g v = make g (Const v) Float
+let input g = make g Input Float
+let tick g = make g Tick Float
 
 (* constant folding: an operation on constants is itself a constant *)
-let fmap g f a = make g (Language.Fmap (f, a))
-let lift2 g f a b = make g (Language.Lift2 (f, a, b))
+let fmap g f a = make g (Language.Fmap (f, a)) Float
+let gmap g f a = make g (Language.Effect (f, a)) Effect
+let emap2 g f a b = make g (Language.Effect2 (f, a, b)) Effect
+let lift2 g f a b = make g (Language.Lift2 (f, a, b)) Float
+let cond g c t e = make g (Language.Cond (c, t, e)) Float
+let pre g a = make g (Pre a) a.kind
 
-let pre g a =
-  match a.def with
-  | Const _ -> a
-  | _ -> make g (Pre a)
-;;
-
-(* [loop ~init body]: on bar i < length(init) the loop copies init.(i)
-   *verbatim* (Some or None — exactly what the source holds that bar);
-   from bar length(init) on it takes the value of [body knot], where [knot]
-   holds the loop's value from the previous bar. init = [||] starts the
-   body on bar 0. A None handed to the recursion is usually permanent:
-   seed with values that are valid at the bar they are consumed. *)
-let recurrence g (body : 'a Language.signal -> 'a Language.signal)
-  : 'a Language.signal
-  =
-  let knot = make g Knot in
+let recurrence g body =
+  let knot = make g Knot Float in
   let result = body knot in
-  make g (Rec (knot, result))
+  make g (Rec (knot, result)) Float
 ;;

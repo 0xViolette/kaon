@@ -32,7 +32,7 @@ let pp_float = function
 
 let pp_bool = function
   | None -> "None"
-  | Some b -> if b then "true" else "false"
+  | Some b -> if b <> 0. then "true" else "false"
 ;;
 
 let value_option = function
@@ -101,9 +101,9 @@ let run name closes expected_stop ~fixed =
     (fun i c ->
        let shock, fill, stop, exit = step c in
        let note =
-         if value_option shock = Some true
+         if value_option shock = Some 1.
          then "ENTRY shock"
-         else if value_option exit = Some true
+         else if value_option exit = Some 1.
          then "STOP HIT -> exit"
          else ""
        in

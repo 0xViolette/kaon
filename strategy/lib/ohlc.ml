@@ -49,20 +49,31 @@ module Make () = struct
   end
 
   let kind_signal = function
-    | Order.Market -> const Order.Market
-    | Limit p -> map (fun p -> Order.Limit p) p
-    | Stop p -> map (fun p -> Order.Stop p) p
+    | Order.Market -> gmap (fun _ -> Some Order.Market) (undefined ())
+    | Limit p -> gmap (Option.map (fun p -> Order.Limit p)) p
+    | Stop p -> gmap (Option.map (fun p -> Order.Stop p)) p
   ;;
 
-  (* Lift pure values into signals *)
-
   let order id action target kind when_ =
-    let make_request =
-      pure (fun target kind ->
-        { Order.id; action = action target; kind })
+    let req =
+      emap2
+        (fun target kind ->
+           match target, kind with
+           | Some target, Some kind ->
+             Some { Order.id; action = action target; kind }
+           | _ -> None)
+        target
+        (kind_signal kind)
     in
-    let req = make_request <*> target <*> kind_signal kind in
-    cond when_ req (undefined ())
+    (* no else branch to speak of: a false or pending condition means no
+       order, i.e. [None] *)
+    emap2
+      (fun c req ->
+         match c with
+         | Some c when c <> 0. -> req
+         | _ -> None)
+      when_
+      req
   ;;
 
   let enter_long id target kind when_ =
