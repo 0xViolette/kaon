@@ -28,36 +28,11 @@ let undefined g = make g Undefined
 let const g v = make g (Const v)
 let input g = make g Input
 let tick g = make g Tick
-let cond g c t e = make g (Cond (c, t, e))
 
 (* constant folding: an operation on constants is itself a constant *)
 let fmap g f a = make g (Language.Fmap (f, a))
 let read g f = make g (Language.Reader f)
 let lift2 g f a b = make g (Language.Lift2 (f, a, b))
-
-(*unary operations*)
-let neg g = fmap g Float.neg
-let abs g = fmap g Float.abs
-let sqrt g = fmap g Float.sqrt
-let not g = fmap g Bool.not
-let floor g = fmap g Float.floor
-let ceil g = fmap g Float.ceil
-
-(*binary operations*)
-let add g = lift2 g Float.add
-let sub g = lift2 g Float.sub
-let mul g = lift2 g Float.mul
-let div g = lift2 g Float.div
-let eq g = lift2 g ( = )
-let neq g = lift2 g ( <> )
-let lt g = lift2 g ( < )
-let le g = lift2 g ( <= )
-let gt g = lift2 g ( > )
-let ge g = lift2 g ( >= )
-let min g = lift2 g Float.min
-let max g = lift2 g Float.max
-let and_ g = lift2 g ( && )
-let or_ g = lift2 g ( || )
 
 let pre g a =
   match a.def with

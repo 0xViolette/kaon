@@ -71,15 +71,6 @@ let compile (g : Graph.t) =
            (fun () ->
              s.prev <- s.cur;
              s.cur <- target.cur))
-    | Cond (c, t, e) ->
-      Some
-        (fun () ->
-          s.prev <- s.cur;
-          s.cur
-          <- (match c.cur with
-              | Some true -> t.cur
-              | Some false -> e.cur
-              | _ -> None))
     | Rec (_, result) ->
       Some
         (fun () ->
@@ -89,10 +80,7 @@ let compile (g : Graph.t) =
       Some
         (fun () ->
           s.prev <- s.cur;
-          s.cur
-          <- (match src.cur with
-              | Some x -> Some (f x)
-              | None -> None))
+          s.cur <- f src.cur)
     | Reader f ->
       Some
         (fun () ->
@@ -102,10 +90,7 @@ let compile (g : Graph.t) =
       Some
         (fun () ->
           s.prev <- s.cur;
-          s.cur
-          <- (match a.cur, b.cur with
-              | Some x, Some y -> Some (f x y)
-              | _ -> None))
+          s.cur <- f a.cur b.cur)
   in
   let steps =
     List.rev

@@ -50,8 +50,8 @@ module Make () = struct
 
   let kind_signal = function
     | Order.Market -> const Order.Market
-    | Limit p -> fmap (fun p -> Order.Limit p) p
-    | Stop p -> fmap (fun p -> Order.Stop p) p
+    | Limit p -> map (fun p -> Order.Limit p) p
+    | Stop p -> map (fun p -> Order.Stop p) p
   ;;
 
   (* Lift pure values into signals *)

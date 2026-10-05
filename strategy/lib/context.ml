@@ -29,10 +29,6 @@ let check_operands : type a. int -> a def -> unit =
   | Lift2 (_, a, b) ->
     check a;
     check b
-  | Cond (c, t, e) ->
-    check c;
-    check t;
-    check e
 ;;
 
 let rec rank_of : type a. a def -> int = function
@@ -41,7 +37,6 @@ let rec rank_of : type a. a def -> int = function
   | IsPending s -> 1 + s.rank
   | Fmap (_, s) -> 1 + s.rank
   | Lift2 (_, l, r) -> 1 + Int.max l.rank r.rank
-  | Cond (c, t, e) -> 1 + Int.max c.rank (Int.max t.rank e.rank)
   | Rec (_, result) -> 1 + result.rank
 ;;
 

@@ -27,16 +27,71 @@ module Make () : S = struct
   let delay n x = Graph.delay g n x
   let window n x = Graph.window g n x
   let recurrence f = Graph.recurrence g f
-  let neg = Graph.neg g
+  let lift2 f a b = Graph.lift2 g f a b
+  let read f = Graph.read g f
+
+  let map2 f =
+    lift2 (fun a b ->
+      match a, b with
+      | Some a, Some b -> Some (f a b)
+      | _ -> None)
+  ;;
+
+  let pure = const
+  let ( <*> ) f x = map2 ( @@ ) f x
+  let ( <*?> ) f x = map2 ( @@ ) (pure f) x
+  let map f a = pure f <*> a
+  let map' f a = f <*?> a
+  let map3 f a b c = pure f <*> a <*> b <*> c
+  let map3' f a b c = f <*?> a <*> b <*> c
+  let fmap f a = Graph.fmap g f a
+
+  let lift3 f a b c =
+    lift2
+      (fun ab c ->
+         match ab, c with
+         | Some (a, b), c -> f a b c
+         | _ -> None)
+      (lift2 (fun a b -> Some (a, b)) a b)
+      c
+  ;;
+
+  let cond c t e =
+    lift3
+      (fun c t e ->
+         match c with
+         | Some true -> t
+         | Some false -> e
+         | None -> None)
+      c
+      t
+      e
+  ;;
+
+  (*unary operations*)
+  let neg = map Float.neg
+  let abs = map Float.abs
+  let sqrt = map Float.sqrt
+  let not = map Bool.not
+  let floor = map Float.floor
+  let ceil = map Float.ceil
+
+  (*binary operations*)
+  let add = map2 Float.add
+  let sub = map2 Float.sub
+  let mul = map2 Float.mul
+  let div = map2 Float.div
+  let eq a b = map2 ( = ) a b
+  let neq a b = map2 ( <> ) a b
+  let lt = map2 ( < )
+  let le = map2 ( <= )
+  let gt = map2 ( > )
+  let ge = map2 ( >= )
+  let min = map2 Float.min
+  let max = map2 Float.max
+  let and_ = map2 ( && )
+  let or_ = map2 ( || )
   let is_pending s = Graph.is_pending g s
-  let add = Graph.add g
-  let sub = Graph.sub g
-  let mul = Graph.mul g
-  let div = Graph.div g
-  let lt = Graph.lt g
-  let le = Graph.le g
-  let gt = Graph.gt g
-  let ge = Graph.ge g
 
   module Ops = struct
     let ( ! ) = const
@@ -48,23 +103,16 @@ module Make () : S = struct
     let ( <= ) = le
     let ( > ) = gt
     let ( >= ) = ge
-    let ( && ) = Graph.and_ g
-    let ( || ) = Graph.or_ g
-    let ( = ) a b = Graph.eq g a b
-    let ( <> ) a b = Graph.neq g a b
-    let abs = Graph.abs g
-    let sqrt = Graph.sqrt g
-    let not = Graph.not g
-    let floor = Graph.floor g
-    let ceil = Graph.ceil g
+    let ( && ) = and_
+    let ( || ) = or_
+    let ( = ) = eq
+    let ( <> ) = neq
+    let abs = abs
+    let sqrt = sqrt
+    let not = not
+    let floor = floor
+    let ceil = ceil
   end
-
-  let fmap f a = Graph.fmap g f a
-  let lift2 f a b = Graph.lift2 g f a b
-  let read f = Graph.read g f
-  let pure = const
-  let ( <*> ) f x = lift2 ( @@ ) f x
-  let cond c t e = Graph.cond g c t e
 
   let value_when event signal =
     recurrence (fun prev -> cond event signal prev)
@@ -92,8 +140,8 @@ module Make () : S = struct
     ;;
 
     let sma n s = Ops.(sum n s / !(Float.of_int n))
-    let min = Graph.min g
-    let max = Graph.max g
+    let min = min
+    let max = max
 
     let ema n s =
       let alpha = Float.div 2. (float_of_int (n + 1)) in
