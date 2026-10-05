@@ -23,11 +23,24 @@ module Make () : S = struct
   let undefined () = Graph.undefined g
   let const x = Graph.const g x
   let input () = Graph.input g
-  let pre x = Graph.pre g x
-  let delay n x = Graph.delay g n x
-  let window n x = Graph.window g n x
+  let pre s = Graph.pre g s
+
+  let rec delay n s =
+    match n with
+    | 0 -> s
+    | n when n > 0 -> delay (n - 1) (pre s)
+    | _ -> invalid_arg "delay: cannot be negative"
+  ;;
+
+  let rec window length s =
+    if length < 0
+    then invalid_arg "window: lookback cannot be negative";
+    if length = 0 then [] else s :: window (length - 1) (pre s)
+  ;;
+
   let recurrence f = Graph.recurrence g f
   let lift2 f a b = Graph.lift2 g f a b
+  let fmap f a = Graph.fmap g f a
   let read f = Graph.read g f
 
   let map2 f =
@@ -44,7 +57,6 @@ module Make () : S = struct
   let map' f a = f <*?> a
   let map3 f a b c = pure f <*> a <*> b <*> c
   let map3' f a b c = f <*?> a <*> b <*> c
-  let fmap f a = Graph.fmap g f a
 
   let lift3 f a b c =
     lift2
