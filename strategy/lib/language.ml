@@ -7,9 +7,6 @@ type 'a signal =
   ; graph_id : int
   ; rank : int
   ; def : 'a def
-  ; (* per-bar runtime state, kept on the node itself so it stays typed *)
-    mutable cur : 'a option
-  ; mutable prev : 'a option
   ; (* a knot is wired to the loop that owns it when the graph is compiled *)
     mutable knot_target : 'a signal option
   ; (* hash-cons slot: a node has at most one [Pre] child *)

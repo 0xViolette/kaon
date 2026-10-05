@@ -46,8 +46,6 @@ let make t graph_id def =
       ; graph_id
       ; rank = rank_of def
       ; def
-      ; cur = None
-      ; prev = None
       ; knot_target = None
       ; pre_child = None
       }

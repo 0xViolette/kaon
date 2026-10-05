@@ -1,7 +1,20 @@
 open Language
 
+(* Per-node machine op; signal state lives in flat arrays indexed by signal
+   id (ids are dense per graph). Cells hold the node's ['a option] erased to
+   Obj.t — representation-safe, as an option is always immediate [None] or a
+   [Some] block. *)
+type instr =
+  | ITick of int (* dst slot *)
+  | IPrev of int * int (* curs.(d) <- prevs.(s): Pre, Knot *)
+  | ICopy of int * int (* curs.(d) <- curs.(s): Rec *)
+  | IFmap of int * (Obj.t -> Obj.t) * int
+  | ILift2 of int * (Obj.t -> Obj.t -> Obj.t) * int * int
+
 type t =
-  { steps : (unit -> unit) array
+  { instrs : instr array
+  ; mutable curs : Obj.t array
+  ; mutable prevs : Obj.t array
   ; input_ids : int array
   ; graph_id : int
   }
@@ -21,7 +34,7 @@ let compile (g : Graph.t) =
          | _ -> ids)
       []
       signals
-    |> Array.of_list
+  |> Array.of_list
   in
   (* wire each knot to the loop that owns it *)
   Array.iter
@@ -30,66 +43,52 @@ let compile (g : Graph.t) =
        | Rec (knot, _) -> knot.knot_target <- Some s
        | _ -> ())
     signals;
-  let step (Any s) =
-    match s.def with
-    | Undefined ->
-      s.prev <- None;
-      s.cur <- None;
-      None
-    | Const v ->
-      s.prev <- Some v;
-      s.cur <- Some v;
-      None
-    | Input -> None
-    | Tick ->
-      Some
-        (fun () ->
-          s.prev <- s.cur;
-          s.cur
-          <- (match s.cur with
-              | Some n -> Some (n + 1)
-              | None -> Some 0))
-    | Pre src ->
-      Some
-        (fun () ->
-          s.prev <- s.cur;
-          s.cur <- src.prev)
-    | Knot ->
-      (match s.knot_target with
-       | None ->
-         failwith "compile: dangling knot (not created by loop)"
-       | Some target ->
-         Some
-           (fun () ->
-             s.prev <- s.cur;
-             s.cur <- target.cur))
-    | Rec (_, result) ->
-      Some
-        (fun () ->
-          s.prev <- s.cur;
-          s.cur <- result.cur)
-    | Fmap (f, src) ->
-      Some
-        (fun () ->
-          s.prev <- s.cur;
-          s.cur <- f src.cur)
-    | Lift2 (f, a, b) ->
-      Some
-        (fun () ->
-          s.prev <- s.cur;
-          s.cur <- f a.cur b.cur)
-  in
-  let steps =
+  let curs = Array.make g.ctx.counter (Obj.repr None) in
+  let prevs = Array.make g.ctx.counter (Obj.repr None) in
+  let instrs =
     List.rev
       (Array.fold_left
-         (fun acc s ->
-            match step s with
-            | Some fn -> fn :: acc
-            | None -> acc)
+         (fun acc (Any s) ->
+            match s.def with
+            | Undefined -> acc
+            | Const v ->
+              (* no instruction: both buffers agree, so swaps keep it constant *)
+              curs.(s.id) <- Obj.repr (Some v);
+              prevs.(s.id) <- Obj.repr (Some v);
+              acc
+            | Input -> acc
+            | Tick -> ITick s.id :: acc
+            | Pre src -> IPrev (s.id, src.id) :: acc
+            | Knot ->
+              (match s.knot_target with
+               | None ->
+                 failwith "compile: dangling knot (not created by loop)"
+               | Some target -> IPrev (s.id, target.id) :: acc)
+            | Rec (_, result) -> ICopy (s.id, result.id) :: acc
+            | Fmap (f, src) ->
+              IFmap (s.id, (Obj.magic f : Obj.t -> Obj.t), src.id) :: acc
+            | Lift2 (f, a, b) ->
+              ILift2
+                (s.id, (Obj.magic f : Obj.t -> Obj.t -> Obj.t), a.id, b.id)
+              :: acc)
          []
          signals)
+    |> Array.of_list
   in
-  { steps = Array.of_list steps; input_ids; graph_id = g.id }
+  { instrs; curs; prevs; input_ids; graph_id = g.id }
+;;
+
+let exec r instr =
+  match instr with
+  | ITick d ->
+    r.curs.(d)
+    <- (match (Obj.obj r.prevs.(d) : int option) with
+        | Some n -> Obj.repr (Some (n + 1))
+        | None -> Obj.repr (Some 0))
+  | IPrev (d, s) -> r.curs.(d) <- r.prevs.(s)
+  | ICopy (d, s) -> r.curs.(d) <- r.curs.(s)
+  | IFmap (d, f, a) -> r.curs.(d) <- f r.curs.(a)
+  | ILift2 (d, f, a, b) -> r.curs.(d) <- f r.curs.(a) r.curs.(b)
 ;;
 
 type set = Set : 'a signal * 'a -> set
@@ -112,17 +111,21 @@ let step r setters =
   then failwith "step: all inputs must be set";
   if Array.length r.input_ids <> List.length setters
   then failwith "step: an input is set more than once"
-  else
+  else (
+    (* rotate buffers: every node's last-bar cur becomes its prev *)
+    let c = r.curs in
+    r.curs <- r.prevs;
+    r.prevs <- c;
     List.iter
-      (fun (Set (s, v)) ->
-         s.prev <- s.cur;
-         s.cur <- Some v)
+      (fun (Set (s, v)) -> r.curs.(s.id) <- Obj.repr (Some v))
       setters;
-  Array.iter (fun f -> f ()) r.steps
+    for i = 0 to Array.length r.instrs - 1 do
+      exec r r.instrs.(i)
+    done)
 ;;
 
 let value r (s : 'a signal) : 'a option =
   if s.graph_id <> r.graph_id
   then failwith "value: signal belongs to a different graph";
-  s.cur
+  Obj.obj r.curs.(s.id)
 ;;
