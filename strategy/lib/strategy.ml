@@ -41,7 +41,7 @@ module Make () : S = struct
   let recurrence f = Graph.recurrence g f
   let lift2 f a b = Graph.lift2 g f a b
   let fmap f a = Graph.fmap g f a
-  let read f = Graph.read g f
+  let read f = fmap (fun _ -> f ()) (undefined ())
 
   let map2 f =
     lift2 (fun a b ->
@@ -103,7 +103,7 @@ module Make () : S = struct
   let max = map2 Float.max
   let and_ = map2 ( && )
   let or_ = map2 ( || )
-  let is_pending s = Graph.is_pending g s
+  let is_pending s = fmap (Fun.compose Option.some Option.is_none) s
 
   module Ops = struct
     let ( ! ) = const

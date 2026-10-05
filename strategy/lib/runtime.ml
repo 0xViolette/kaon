@@ -40,14 +40,6 @@ let compile (g : Graph.t) =
       s.prev <- Some v;
       s.cur <- Some v;
       None
-    | IsPending src ->
-      Some
-        (fun () ->
-          s.prev <- s.cur;
-          s.cur
-          <- (match src.cur with
-              | Some _ -> Some false
-              | None -> Some true))
     | Input -> None
     | Tick ->
       Some
@@ -81,11 +73,6 @@ let compile (g : Graph.t) =
         (fun () ->
           s.prev <- s.cur;
           s.cur <- f src.cur)
-    | Reader f ->
-      Some
-        (fun () ->
-          s.prev <- s.cur;
-          s.cur <- f ())
     | Lift2 (f, a, b) ->
       Some
         (fun () ->

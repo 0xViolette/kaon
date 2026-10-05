@@ -19,9 +19,8 @@ let check_operands : type a. int -> a def -> unit =
     then failwith "make: operand belongs to a different graph"
   in
   match def with
-  | Undefined | Const _ | Input | Knot | Tick | Reader _ -> ()
+  | Undefined | Const _ | Input | Knot | Tick -> ()
   | Pre src -> check src
-  | IsPending src -> check src
   | Rec (knot, result) ->
     check knot;
     check result
@@ -32,9 +31,8 @@ let check_operands : type a. int -> a def -> unit =
 ;;
 
 let rec rank_of : type a. a def -> int = function
-  | Undefined | Const _ | Input | Tick | Knot | Reader _ -> 0
+  | Undefined | Const _ | Input | Tick | Knot -> 0
   | Pre s -> 1 + s.rank
-  | IsPending s -> 1 + s.rank
   | Fmap (_, s) -> 1 + s.rank
   | Lift2 (_, l, r) -> 1 + Int.max l.rank r.rank
   | Rec (_, result) -> 1 + result.rank

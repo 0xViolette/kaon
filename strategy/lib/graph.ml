@@ -31,7 +31,6 @@ let tick g = make g Tick
 
 (* constant folding: an operation on constants is itself a constant *)
 let fmap g f a = make g (Language.Fmap (f, a))
-let read g f = make g (Language.Reader f)
 let lift2 g f a b = make g (Language.Lift2 (f, a, b))
 
 let pre g a =
@@ -39,22 +38,6 @@ let pre g a =
   | Const _ -> a
   | _ -> make g (Pre a)
 ;;
-
-let rec delay g n node =
-  match n with
-  | 0 -> node
-  | n when n > 0 -> delay g (n - 1) (pre g node)
-  | _ -> invalid_arg "delay: cannot be negative"
-;;
-
-let rec window g length node =
-  if length < 0 then invalid_arg "window: lookback cannot be negative";
-  if length = 0
-  then []
-  else node :: window g (length - 1) (pre g node)
-;;
-
-let is_pending g s = make g (IsPending s)
 
 (* [loop ~init body]: on bar i < length(init) the loop copies init.(i)
    *verbatim* (Some or None — exactly what the source holds that bar);

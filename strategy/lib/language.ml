@@ -22,13 +22,11 @@ and _ def =
   | Input : 'a def
   | Tick : int def
   | Pre : 'a signal -> 'a def
-  | IsPending : 'a signal -> bool def
   | Knot : 'a def
   | Rec : 'a signal * 'a signal -> 'a def
   | Fmap : ('a option -> 'b option) * 'a signal -> 'b def
   | Lift2 :
       ('a option -> 'b option -> 'c option) * 'a signal * 'b signal
       -> 'c def
-  | Reader : (unit -> 'b option) -> 'b def
 
 type any_signal = Any : 'a signal -> any_signal [@@unboxed]
