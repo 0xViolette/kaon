@@ -52,11 +52,7 @@ module Make () : S = struct
 
   let pure = const
   let ( <*> ) f x = map2 ( @@ ) f x
-  let ( <*?> ) f x = map2 ( @@ ) (pure f) x
   let map f a = pure f <*> a
-  let map' f a = f <*?> a
-  let map3 f a b c = pure f <*> a <*> b <*> c
-  let map3' f a b c = f <*?> a <*> b <*> c
 
   let lift3 f a b c =
     lift2
