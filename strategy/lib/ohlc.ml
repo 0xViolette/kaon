@@ -49,31 +49,40 @@ module Make () = struct
   end
 
   let kind_signal = function
-    | Order.Market -> gmap (fun _ -> Some Order.Market) (undefined ())
-    | Limit p -> gmap (Option.map (fun p -> Order.Limit p)) p
-    | Stop p -> gmap (Option.map (fun p -> Order.Stop p)) p
+    | Order.Market -> pure Order.Market
+    | Limit p -> lift (fun p -> Order.Limit p) p
+    | Stop p -> lift (fun p -> Order.Stop p) p
   ;;
 
+  (* let order id action target kind when_ = *)
+  (*   let req = *)
+  (*     gmap2 *)
+  (*       (fun target kind -> *)
+  (*          match target, kind with *)
+  (*          | Some target, Some kind -> *)
+  (*            Some { Order.id; action = action target; kind } *)
+  (*          | _ -> None) *)
+  (*       target *)
+  (*       (kind_signal kind) *)
+  (*   in *)
+  (*   (* no else branch to speak of: a false or pending condition means no *)
+  (*      order, i.e. [None] *) *)
+  (*   gmap2 *)
+  (*     (fun c req -> *)
+  (*        match c with *)
+  (*        | Some c when c <> 0. -> req *)
+  (*        | _ -> None) *)
+  (*     when_ *)
+  (*     req *)
+  (* ;; *)
+
   let order id action target kind when_ =
-    let req =
-      emap2
-        (fun target kind ->
-           match target, kind with
-           | Some target, Some kind ->
-             Some { Order.id; action = action target; kind }
-           | _ -> None)
-        target
-        (kind_signal kind)
+    let make_req =
+      pure (fun target kind ->
+        { Order.id; action = action target; kind })
     in
-    (* no else branch to speak of: a false or pending condition means no
-       order, i.e. [None] *)
-    emap2
-      (fun c req ->
-         match c with
-         | Some c when c <> 0. -> req
-         | _ -> None)
-      when_
-      req
+    let req = make_req <*> target <*> kind_signal kind in
+    cond when_ req (undefined ())
   ;;
 
   let enter_long id target kind when_ =

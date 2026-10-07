@@ -7,7 +7,8 @@ module type S = sig
   val compile : unit -> unit
   val step : set list -> unit
   val const : float -> float signal
-  val undefined : unit -> float signal
+  val pure : 'a -> 'a signal
+  val undefined : unit -> 'a signal
   val value : 'a signal -> 'a option
   val input : unit -> float signal
   val pre : 'a signal -> 'a signal
@@ -21,45 +22,25 @@ module type S = sig
     val ( * ) : float signal -> float signal -> float signal
     val ( - ) : float signal -> float signal -> float signal
     val ( / ) : float signal -> float signal -> float signal
-    val ( < ) : float signal -> float signal -> float signal
-    val ( <= ) : float signal -> float signal -> float signal
-    val ( > ) : float signal -> float signal -> float signal
-    val ( >= ) : float signal -> float signal -> float signal
-    val ( && ) : float signal -> float signal -> float signal
-    val ( || ) : float signal -> float signal -> float signal
-    val ( = ) : float signal -> float signal -> float signal
-    val ( <> ) : float signal -> float signal -> float signal
+    val ( < ) : float signal -> float signal -> bool signal
+    val ( <= ) : float signal -> float signal -> bool signal
+    val ( > ) : float signal -> float signal -> bool signal
+    val ( >= ) : float signal -> float signal -> bool signal
+    val ( && ) : bool signal -> bool signal -> bool signal
+    val ( || ) : bool signal -> bool signal -> bool signal
+    val ( = ) : 'a signal -> 'a signal -> bool signal
+    val ( <> ) : 'a signal -> 'a signal -> bool signal
     val abs : float signal -> float signal
-    val not : float signal -> float signal
+    val not : bool signal -> bool signal
     val sqrt : float signal -> float signal
     val floor : float signal -> float signal
     val ceil : float signal -> float signal
   end
 
-  val cond
-    :  float signal
-    -> float signal
-    -> float signal
-    -> float signal
-
-  val value_when : float signal -> float signal -> float signal
-  val is_pending : float signal -> float signal
-  val fmap : (float -> float) -> float signal -> float signal
-
-  val lift2
-    :  (float -> float -> float)
-    -> float signal
-    -> float signal
-    -> float signal
-
+  val cond : bool signal -> 'a signal -> 'a signal -> 'a signal
+  val value_when : bool signal -> float signal -> float signal
+  val is_pending : 'a signal -> bool signal
   val map : (float -> float) -> float signal -> float signal
-  val gmap : ('a option -> 'b option) -> 'a signal -> 'b signal
-
-  val emap2
-    :  ('a option -> 'b option -> 'c option)
-    -> 'a signal
-    -> 'b signal
-    -> 'c signal
 
   val map2
     :  (float -> float -> float)
@@ -67,6 +48,17 @@ module type S = sig
     -> float signal
     -> float signal
 
+  val gmap : ('a option -> 'b option) -> 'a signal -> 'b signal
+
+  val gmap2
+    :  ('a option -> 'b option -> 'c option)
+    -> 'a signal
+    -> 'b signal
+    -> 'c signal
+
+  val lift : ('a -> 'b) -> 'a signal -> 'b signal
+  val lift2 : ('a -> 'b -> 'c) -> 'a signal -> 'b signal -> 'c signal
+  val ( <*> ) : ('a -> 'b) signal -> 'a signal -> 'b signal
   val read : (unit -> 'b option) -> 'b signal
 
   module Indicator : sig
@@ -74,11 +66,11 @@ module type S = sig
     val min : float signal -> float signal -> float signal
     val sma : int -> float signal -> float signal
     val ema : int -> float signal -> float signal
-    val crossover : float signal -> float signal -> float signal
+    val crossover : float signal -> float signal -> bool signal
+    val crossunder : float signal -> float signal -> bool signal
     val highest : int -> float signal -> float signal
     val lowest : int -> float signal -> float signal
-    val bars_since : float signal -> float signal
-    val crossunder : float signal -> float signal -> float signal
+    val bars_since : bool signal -> float signal
   end
 end
 

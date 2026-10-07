@@ -77,6 +77,7 @@ let () =
   let orders (*, probes *) = strat () in
   (* Printf.printf "%s\n" (Report.csv_header (List.map fst probes)); *)
   Papa.backtest (* ~probes *)
+    (* ~probes *)
     (* ~on_bar:(fun r -> Printf.printf "%s\n" (Report.csv_row r)) *)
     orders;
   Printf.eprintf "Execution time: %.4f seconds\n" (Sys.time () -. t0)

@@ -4,7 +4,7 @@ A signal can only be float or bool [numerical stream or logical stream]
 
 type _ signal_kind =
   | Float : float signal_kind
-  | Effect : 'a signal_kind
+  | Any : 'a signal_kind
 
 type 'a signal =
   { id : int
@@ -19,21 +19,21 @@ type 'a signal =
   }
 
 and _ def =
-  | Undefined : float def
-  | Const : float -> float def
+  | Undefined : 'a def
   | Input : float def
   | Tick : float def
   | Pre : 'a signal -> 'a def
-  | Cond : float signal * float signal * float signal -> float def
   | Knot : float def
   | Rec : float signal * float signal -> 'a def
-  | Fmap : (float -> float) * float signal -> float def
-  | Effect : ('a option -> 'b option) * 'a signal -> 'b def
-  | Effect2 :
-      ('a option -> 'b option -> 'c option) * 'a signal * 'b signal
-      -> 'c def
-  | Lift2 :
+  | Const : float -> float def
+  | Pure : 'a option -> 'a def
+  | Map : (float -> float) * float signal -> float def
+  | Map2 :
       (float -> float -> float) * float signal * float signal
       -> float def
+  | Gmap : ('a option -> 'b option) * 'a signal -> 'b def
+  | Gmap2 :
+      ('a option -> 'b option -> 'c option) * 'a signal * 'b signal
+      -> 'c def
 
 type any_signal = Any : 'a signal -> any_signal [@@unboxed]

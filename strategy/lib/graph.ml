@@ -24,17 +24,17 @@ let make g (def : 'a def) =
   else failwith "Cannot mess with a compiled graph"
 ;;
 
-let undefined g = make g Undefined Float
+let undefined g = make g Undefined Any
 let const g v = make g (Const v) Float
+let pure g v = make g (Pure (Some v)) Any
 let input g = make g Input Float
 let tick g = make g Tick Float
 
 (* constant folding: an operation on constants is itself a constant *)
-let fmap g f a = make g (Language.Fmap (f, a)) Float
-let gmap g f a = make g (Language.Effect (f, a)) Effect
-let emap2 g f a b = make g (Language.Effect2 (f, a, b)) Effect
-let lift2 g f a b = make g (Language.Lift2 (f, a, b)) Float
-let cond g c t e = make g (Language.Cond (c, t, e)) Float
+let map g f a = make g (Map (f, a)) Float
+let map2 g f a b = make g (Map2 (f, a, b)) Float
+let gmap g f a = make g (Gmap (f, a)) Any
+let gmap2 g f a b = make g (Gmap2 (f, a, b)) Any
 let pre g a = make g (Pre a) a.kind
 
 let recurrence g body =

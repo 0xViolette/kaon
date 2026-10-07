@@ -23,34 +23,29 @@ let check_operands : type a. int -> a def -> unit =
     then failwith "make: operand belongs to a different graph"
   in
   match def with
-  | Undefined | Const _ | Input | Knot | Tick -> ()
+  | Undefined | Const _ | Pure _ | Input | Knot | Tick -> ()
   | Pre src -> check src
   | Rec (knot, result) ->
     check knot;
     check result
-  | Fmap (_, src) -> check src
-  | Effect (_, src) -> check src
-  | Effect2 (_, a, b) ->
+  | Map (_, src) -> check src
+  | Map2 (_, a, b) ->
     check a;
     check b
-  | Lift2 (_, a, b) ->
+  | Gmap (_, src) -> check src
+  | Gmap2 (_, a, b) ->
     check a;
     check b
-  | Cond (c, t, e) ->
-    check c;
-    check t;
-    check e
 ;;
 
 let rec rank_of : type a. a def -> int = function
-  | Undefined | Const _ | Input | Tick | Knot -> 0
+  | Undefined | Const _ | Pure _ | Input | Tick | Knot -> 0
   | Pre s -> 1 + s.rank
-  | Fmap (_, s) -> 1 + s.rank
-  | Lift2 (_, l, r) -> 1 + Int.max l.rank r.rank
-  | Effect2 (_, l, r) -> 1 + Int.max l.rank r.rank
+  | Map (_, s) -> 1 + s.rank
+  | Map2 (_, l, r) -> 1 + Int.max l.rank r.rank
+  | Gmap (_, s) -> 1 + s.rank
+  | Gmap2 (_, l, r) -> 1 + Int.max l.rank r.rank
   | Rec (_, result) -> 1 + result.rank
-  | Cond (c, t, e) -> 1 + max c.rank (max t.rank e.rank)
-  | Effect (_, s) -> 1 + s.rank
 ;;
 
 let make t graph_id =
@@ -62,7 +57,7 @@ let make t graph_id =
   let fresh ?key () =
     let new_id =
       match kind with
-      | Effect ->
+      | Any ->
         t.effect_counter <- t.effect_counter + 1;
         t.effect_counter - 1
       | Float ->

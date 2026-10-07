@@ -6,7 +6,6 @@ module Make () : S = struct
 
   let g = Graph.create ()
   let r = ref None
-  let tick : float signal = Graph.tick g
 
   let step setters =
     match !r with
@@ -22,6 +21,7 @@ module Make () : S = struct
 
   let undefined () = Graph.undefined g
   let const x = Graph.const g x
+  let pure x = Graph.pure g x
   let input () = Graph.input g
   let pre s = Graph.pre g s
 
@@ -39,18 +39,37 @@ module Make () : S = struct
   ;;
 
   let recurrence f = Graph.recurrence g f
-  let lift2 f a b = Graph.lift2 g f a b
-  let fmap f a = Graph.fmap g f a
+  let map f a = Graph.map g f a
+  let map2 f a b = Graph.map2 g f a b
   let gmap f a = Graph.gmap g f a
-  let emap2 f a b = Graph.emap2 g f a b
-  let cond c t e = Graph.cond g c t e
-  let read f = gmap (fun _ -> f ()) (undefined ())
-  let map f = fmap (fun a -> if Float.is_nan a then nan else f a)
+  let gmap2 f a b = Graph.gmap2 g f a b
+  let lift2 f = gmap2 (Option.map2 f)
+  let ( <*> ) f = lift2 ( @@ ) f
+  let lift f a = pure f <*> a
 
-  let map2 f =
-    lift2 (fun a b ->
-      if Float.is_nan a || Float.is_nan b then nan else f a b)
+  let gmap3 f a b c =
+    gmap2
+      (fun ab c ->
+         match ab with
+         | Some (a, b) -> f a b c
+         | _ -> None)
+      (gmap2 (fun a b -> Some (a, b)) a b)
+      c
   ;;
+
+  let cond c t e =
+    gmap3
+      (fun c t e ->
+         match c with
+         | Some true -> t
+         | Some false -> e
+         | None -> None)
+      c
+      t
+      e
+  ;;
+
+  let read f = gmap (fun _ -> f ()) (undefined ())
 
   (* booleans are floats: [0.] is false, anything else true, [nan] pending *)
   let of_bool b = if b then 1. else 0.
@@ -59,26 +78,26 @@ module Make () : S = struct
   let neg = map Float.neg
   let abs = map Float.abs
   let sqrt = map Float.sqrt
-  let not = map (fun b -> of_bool (b = 0.))
   let floor = map Float.floor
   let ceil = map Float.ceil
+  let not = lift Bool.not
 
   (*binary operations*)
   let add = map2 Float.add
   let sub = map2 Float.sub
   let mul = map2 Float.mul
   let div = map2 Float.div
-  let eq = map2 (fun a b -> of_bool (a = b))
-  let neq = map2 (fun a b -> of_bool (a <> b))
-  let lt = map2 (fun a b -> of_bool (a < b))
-  let le = map2 (fun a b -> of_bool (a <= b))
-  let gt = map2 (fun a b -> of_bool (a > b))
-  let ge = map2 (fun a b -> of_bool (a >= b))
+  let eq a b = lift2 ( = ) a b
+  let neq a b = lift2 ( <> ) a b
+  let lt = lift2 ( < )
+  let le = lift2 ( <= )
+  let gt = lift2 ( > )
+  let ge = lift2 ( >= )
   let min = map2 Float.min
   let max = map2 Float.max
-  let and_ = map2 (fun a b -> of_bool (a <> 0. && b <> 0.))
-  let or_ = map2 (fun a b -> of_bool (a <> 0. || b <> 0.))
-  let is_pending = fmap (fun a -> of_bool (Float.is_nan a))
+  let and_ = lift2 ( && )
+  let or_ = lift2 ( || )
+  let is_pending s = gmap (fun a -> Some (Option.is_none a)) s
 
   module Ops = struct
     let ( ! ) = const
@@ -100,6 +119,11 @@ module Make () : S = struct
     let floor = floor
     let ceil = ceil
   end
+
+  let tick =
+    recurrence (fun prev ->
+      cond (is_pending prev) (const 0.) Ops.(prev + !1.))
+  ;;
 
   let value_when event signal =
     recurrence (fun prev -> cond event signal prev)

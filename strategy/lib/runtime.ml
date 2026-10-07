@@ -17,11 +17,10 @@ type instr =
   | ICopy of int * int (* float_curs.(d) <- float_curs.(s): Rec *)
   | IUnbox of
       int * int (* float_curs.(d) <- effect_curs.(s); None -> nan *)
-  | IFmap of int * (float -> float) * int
-  | ILift2 of int * (float -> float -> float) * int * int
-  | IEffect of int * (Obj.t -> Obj.t) * src
-  | IEffect2 of int * (Obj.t -> Obj.t -> Obj.t) * src * src
-  | ICond of int * int * int * int
+  | IMap of int * (float -> float) * int
+  | IMap2 of int * (float -> float -> float) * int * int
+  | IGMap of int * (Obj.t -> Obj.t) * src
+  | IGmap2 of int * (Obj.t -> Obj.t -> Obj.t) * src * src
 
 type t =
   { instrs : instr array
@@ -63,10 +62,11 @@ let compile (g : Graph.t) =
   let extra_floats = ref 0 in
   let coercions = Hashtbl.create 8 in
   let consts = ref [] in
+  let pures = ref [] in
   let float_slot (s : float signal) =
     match s.kind with
     | Float -> s.id, []
-    | Effect ->
+    | Any ->
       (match Hashtbl.find_opt coercions s.id with
        | Some slot -> slot, []
        | None ->
@@ -79,7 +79,7 @@ let compile (g : Graph.t) =
     fun s ->
     match s.kind with
     | Float -> F s.id
-    | Effect -> E s.id
+    | Any -> E s.id
   in
   let instrs =
     List.rev
@@ -96,7 +96,7 @@ let compile (g : Graph.t) =
             | Pre src ->
               (match s.kind with
                | Float -> IPrev (s.id, src.id) :: acc
-               | Effect -> IPrevE (s.id, src.id) :: acc)
+               | Any -> IPrevE (s.id, src.id) :: acc)
             | Knot ->
               (match s.knot_target with
                | None ->
@@ -106,32 +106,30 @@ let compile (g : Graph.t) =
             | Rec (_, result) ->
               (match result.kind with
                | Float -> ICopy (s.id, result.id) :: acc
-               | Effect -> IUnbox (s.id, result.id) :: acc)
-            | Fmap (f, src) ->
+               | Any -> IUnbox (s.id, result.id) :: acc)
+            | Map (f, src) ->
               let src, coerce = float_slot src in
-              IFmap (s.id, f, src) :: (coerce @ acc)
-            | Lift2 (f, a, b) ->
+              IMap (s.id, f, src) :: (coerce @ acc)
+            | Map2 (f, a, b) ->
               let a, coerce_a = float_slot a in
               let b, coerce_b = float_slot b in
-              ILift2 (s.id, f, a, b) :: (coerce_a @ coerce_b @ acc)
-            | Effect (f, src) ->
-              IEffect
+              IMap2 (s.id, f, a, b) :: (coerce_a @ coerce_b @ acc)
+            | Pure v ->
+              (* no instruction: both buffers agree, so swaps keep it constant *)
+              pures := (s.id, Obj.repr v) :: !pures;
+              acc
+            | Gmap (f, src) ->
+              IGMap
                 (s.id, (fun o -> Obj.repr (f (Obj.obj o))), src_of src)
               :: acc
-            | Effect2 (f, a, b) ->
-              IEffect2
+            | Gmap2 (f, a, b) ->
+              IGmap2
                 ( s.id
                 , (fun oa ob ->
                     Obj.repr (f (Obj.obj oa) (Obj.obj ob)))
                 , src_of a
                 , src_of b )
-              :: acc
-            | Cond (c, t, e) ->
-              let c, coerce_c = float_slot c in
-              let t, coerce_t = float_slot t in
-              let e, coerce_e = float_slot e in
-              ICond (s.id, c, t, e)
-              :: (coerce_c @ coerce_t @ coerce_e @ acc))
+              :: acc)
          []
          signals)
     |> Array.of_list
@@ -148,6 +146,11 @@ let compile (g : Graph.t) =
   let effect_prevs =
     Array.make g.ctx.effect_counter (Obj.repr None)
   in
+  List.iter
+    (fun (id, v) ->
+       effect_curs.(id) <- v;
+       effect_prevs.(id) <- v)
+    !pures;
   { instrs
   ; float_curs
   ; float_prevs
@@ -180,20 +183,12 @@ let exec r instr =
     <- (match (Obj.obj r.effect_curs.(s) : float option) with
         | Some v -> v
         | None -> nan)
-  | IFmap (d, f, a) -> r.float_curs.(d) <- f r.float_curs.(a)
-  | ILift2 (d, f, a, b) ->
+  | IMap (d, f, a) -> r.float_curs.(d) <- f r.float_curs.(a)
+  | IMap2 (d, f, a, b) ->
     r.float_curs.(d) <- f r.float_curs.(a) r.float_curs.(b)
-  | IEffect (d, f, s) -> r.effect_curs.(d) <- f (read_src r s)
-  | IEffect2 (d, f, a, b) ->
+  | IGMap (d, f, s) -> r.effect_curs.(d) <- f (read_src r s)
+  | IGmap2 (d, f, a, b) ->
     r.effect_curs.(d) <- f (read_src r a) (read_src r b)
-  | ICond (d, c, t, e) ->
-    r.float_curs.(d)
-    <- (let c = r.float_curs.(c) in
-        if Float.is_nan c
-        then nan
-        else if c = 0.
-        then r.float_curs.(e)
-        else r.float_curs.(t))
 ;;
 
 type set = Set : float signal * float -> set
@@ -235,7 +230,7 @@ let value : type a. t -> a signal -> a option =
   if s.graph_id <> r.graph_id
   then failwith "value: signal belongs to a different graph";
   match s.kind with
-  | Effect -> Obj.obj r.effect_curs.(s.id)
+  | Any -> Obj.obj r.effect_curs.(s.id)
   | Float ->
     let v = r.float_curs.(s.id) in
     if Float.is_nan v then None else Some v
