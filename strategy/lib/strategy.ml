@@ -21,7 +21,6 @@ module Make () : S = struct
 
   let undefined () = Graph.undefined g
   let const x = Graph.const g x
-  let pure x = Graph.pure g x
   let input () = Graph.input g
   let pre s = Graph.pre g s
 
@@ -43,9 +42,19 @@ module Make () : S = struct
   let map2 f a b = Graph.map2 g f a b
   let gmap f a = Graph.gmap g f a
   let gmap2 f a b = Graph.gmap2 g f a b
-  let lift2 f = gmap2 (Option.map2 f)
-  let ( <*> ) f = lift2 ( @@ ) f
+
+  (* -----------Applicative laws----------- *)
+
+  let pure x = Graph.pure g x
+
+  let ( <*> ) f a =
+    gmap2 (fun f a -> Option.map2 (fun f a -> f a) f a) f a
+  ;;
+
+  (* -------------------------------------- *)
+
   let lift f a = pure f <*> a
+  let lift2 f a b = pure f <*> a <*> b
 
   let gmap3 f a b c =
     gmap2

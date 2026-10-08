@@ -57,28 +57,26 @@ let strat () =
   let orders =
     [ stop_l; stop_s; cover_s; enter_long; cover_l; enter_short ]
   in
-  (* let probes = *)
-  (*   [ "atr1", atr1 *)
-  (*   ; "atr", atr *)
-  (*   ; "mov", mov *)
-  (*   ; "tradecon", tradecon *)
-  (*   ; "atr_at_entry", atr_at_entry *)
-  (*   ; "lx2n", lx2n *)
-  (*   ; "sx2n", sx2n *)
-  (*   ] *)
-  (* in *)
-  orders
+  let probes =
+    [ "atr1", atr1
+    ; "atr", atr
+    ; "mov", mov
+    ; "tradecon", tradecon
+    ; "atr_at_entry", atr_at_entry
+    ; "lx2n", lx2n
+    ; "sx2n", sx2n
+    ]
+  in
+  orders, probes
 ;;
-
-(*, probes*)
 
 let () =
   let t0 = Sys.time () in
-  let orders (*, probes *) = strat () in
-  (* Printf.printf "%s\n" (Report.csv_header (List.map fst probes)); *)
+  let orders, probes = strat () in
+  Printf.printf "%s\n" (Report.csv_header (List.map fst probes));
   Papa.backtest (* ~probes *)
-    (* ~probes *)
-    (* ~on_bar:(fun r -> Printf.printf "%s\n" (Report.csv_row r)) *)
+    ~probes
+    ~on_bar:(fun r -> Printf.printf "%s\n" (Report.csv_row r))
     orders;
   Printf.eprintf "Execution time: %.4f seconds\n" (Sys.time () -. t0)
 ;;

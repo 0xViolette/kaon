@@ -54,28 +54,6 @@ module Make () = struct
     | Stop p -> lift (fun p -> Order.Stop p) p
   ;;
 
-  (* let order id action target kind when_ = *)
-  (*   let req = *)
-  (*     gmap2 *)
-  (*       (fun target kind -> *)
-  (*          match target, kind with *)
-  (*          | Some target, Some kind -> *)
-  (*            Some { Order.id; action = action target; kind } *)
-  (*          | _ -> None) *)
-  (*       target *)
-  (*       (kind_signal kind) *)
-  (*   in *)
-  (*   (* no else branch to speak of: a false or pending condition means no *)
-  (*      order, i.e. [None] *) *)
-  (*   gmap2 *)
-  (*     (fun c req -> *)
-  (*        match c with *)
-  (*        | Some c when c <> 0. -> req *)
-  (*        | _ -> None) *)
-  (*     when_ *)
-  (*     req *)
-  (* ;; *)
-
   let order id action target kind when_ =
     let make_req =
       pure (fun target kind ->
